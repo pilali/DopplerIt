@@ -36,7 +36,6 @@ public:
 private:
     int optionAt(juce::Point<float>) const;
 
-    juce::RangedAudioParameter& param;
     std::vector<Option> options;
     float fontSize, tracking;
     int current = 0;
@@ -79,7 +78,6 @@ public:
     void mouseDown(const juce::MouseEvent&) override;
 
 private:
-    juce::RangedAudioParameter& param;
     bool on = false;
     juce::ParameterAttachment attachment;
 };
@@ -109,7 +107,6 @@ public:
     bool isBypassed() const { return bypassed; }
 
 private:
-    juce::RangedAudioParameter& param;
     const juce::Image& sheet;
     bool bypassed = false;
     juce::ParameterAttachment attachment;

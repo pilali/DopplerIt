@@ -83,7 +83,7 @@ Image loadImage(const void* data, int size)
 
 //==============================================================================
 SegmentedChoice::SegmentedChoice(RangedAudioParameter& p, std::vector<Option> opts, float fs, float tr)
-    : param(p), options(std::move(opts)), fontSize(fs), tracking(tr),
+    : options(std::move(opts)), fontSize(fs), tracking(tr),
       attachment(p, [this](float v) { current = roundToInt(v); repaint(); })
 {
     attachment.sendInitialUpdate();
@@ -195,7 +195,7 @@ void FilmKnob::paint(Graphics& g)
 
 //==============================================================================
 SlideSwitch::SlideSwitch(RangedAudioParameter& p)
-    : param(p), attachment(p, [this](float v) { on = v > 0.5f; repaint(); })
+    : attachment(p, [this](float v) { on = v > 0.5f; repaint(); })
 {
     attachment.sendInitialUpdate();
     setMouseCursor(MouseCursor::PointingHandCursor);
@@ -280,7 +280,7 @@ void PassButton::mouseUp(const MouseEvent&)
 
 //==============================================================================
 Footswitch::Footswitch(RangedAudioParameter& p, const Image& s)
-    : param(p), sheet(s),
+    : sheet(s),
       attachment(p, [this](float v) {
           bypassed = v > 0.5f;
           repaint();
