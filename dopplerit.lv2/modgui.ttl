@@ -1,0 +1,64 @@
+@prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
+@prefix modgui: <http://moddevices.com/ns/modgui#> .
+
+<https://github.com/pilali/dopplerit>
+    modgui:gui [
+        modgui:resourcesDirectory <modgui> ;
+        modgui:iconTemplate <modgui/icon-dopplerit.html> ;
+        modgui:stylesheet <modgui/stylesheet-dopplerit.css> ;
+        modgui:screenshot <modgui/screenshot-dopplerit.png> ;
+        modgui:thumbnail <modgui/thumbnail-dopplerit.png> ;
+        modgui:brand "pilali" ;
+        modgui:label "DopplerIt" ;
+        modgui:port
+        [
+            lv2:index 0 ;
+            lv2:symbol "mode" ;
+            lv2:name "Mode" ;
+        ] ,
+        [
+            lv2:index 1 ;
+            lv2:symbol "speed" ;
+            lv2:name "Speed" ;
+        ] ,
+        [
+            lv2:index 2 ;
+            lv2:symbol "period" ;
+            lv2:name "Period" ;
+        ] ,
+        [
+            lv2:index 3 ;
+            lv2:symbol "distance" ;
+            lv2:name "Distance" ;
+        ] ,
+        [
+            lv2:index 4 ;
+            lv2:symbol "attenuation" ;
+            lv2:name "Attenuation" ;
+        ] ,
+        [
+            lv2:index 5 ;
+            lv2:symbol "output" ;
+            lv2:name "Output" ;
+        ] ,
+        [
+            lv2:index 6 ;
+            lv2:symbol "width" ;
+            lv2:name "Width" ;
+        ] ,
+        [
+            lv2:index 7 ;
+            lv2:symbol "mix" ;
+            lv2:name "Dry/Wet" ;
+        ] ,
+        [
+            lv2:index 8 ;
+            lv2:symbol "loop" ;
+            lv2:name "Loop" ;
+        ] ,
+        [
+            lv2:index 9 ;
+            lv2:symbol "trigger" ;
+            lv2:name "Trigger" ;
+        ] ;
+    ] .

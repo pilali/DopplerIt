@@ -1,0 +1,291 @@
+/* DopplerIt modgui - shared by the mono and stereo plugins */
+
+.dopplerit{{{cns}}} {
+    position: absolute;
+    width: 320px;
+    height: 476px;
+    border-radius: 14px;
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(64, 160, 255, 0.10), rgba(0, 0, 0, 0) 60%),
+        linear-gradient(180deg, #2a303c 0%, #1b1f27 55%, #14171d 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.45),
+        0 0 0 1px #0b0d11;
+    font-family: "Ek Mukta", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #dfe5ee;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* = HEADER
+================================================ */
+.dopplerit{{{cns}}} .dp-header {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 320px;
+    height: 104px;
+    border-radius: 14px 14px 0 0;
+    overflow: hidden;
+    background: linear-gradient(180deg, #11141a 0%, #181c24 100%);
+    border-bottom: 1px solid #0b0d11;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.dopplerit{{{cns}}} .dp-waves {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 320px;
+    height: 104px;
+}
+.dopplerit{{{cns}}} .dp-brand {
+    position: absolute;
+    left: 20px;
+    top: 14px;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #7d8796;
+}
+.dopplerit{{{cns}}} .dp-title {
+    position: absolute;
+    left: 18px;
+    top: 30px;
+    font-size: 36px;
+    line-height: 40px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    color: #f2f5fa;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+.dopplerit{{{cns}}} .dp-title span {
+    background: linear-gradient(90deg, #40a0ff, #ff5448);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.dopplerit{{{cns}}} .dp-output {
+    position: absolute;
+    left: 20px;
+    top: 74px;
+    width: 120px;
+    height: 18px;
+}
+.dopplerit{{{cns}}} .dp-select.dp-select-small {
+    width: 120px;
+    height: 18px;
+    border-radius: 9px;
+}
+.dopplerit{{{cns}}} .dp-select-small .dp-opt {
+    height: 18px;
+    line-height: 18px;
+    font-size: 9px;
+    letter-spacing: 1.5px;
+}
+.dopplerit{{{cns}}} .dp-opt-mono.selected,
+.dopplerit{{{cns}}} .dp-opt-stereo.selected {
+    background: linear-gradient(180deg, #5b6474, #3a414e);
+}
+
+/* = MODE SELECTOR
+================================================ */
+.dopplerit{{{cns}}} .dp-mode {
+    position: absolute;
+    left: 20px;
+    top: 118px;
+    width: 280px;
+    height: 28px;
+}
+.dopplerit{{{cns}}} .dp-select {
+    display: flex;
+    width: 280px;
+    height: 28px;
+    border-radius: 14px;
+    background: #0f1217;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+}
+.dopplerit{{{cns}}} .dp-opt {
+    flex: 1 1 0;
+    height: 28px;
+    line-height: 28px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #6f7887;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+}
+.dopplerit{{{cns}}} .dp-opt:hover {
+    color: #b8c1ce;
+}
+.dopplerit{{{cns}}} .dp-opt.selected {
+    color: #ffffff;
+    text-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+}
+.dopplerit{{{cns}}} .dp-opt-approach.selected {
+    background: linear-gradient(180deg, #3f8fe0, #2a6bb0);
+}
+.dopplerit{{{cns}}} .dp-opt-passby.selected {
+    background: linear-gradient(90deg, #3f8fe0, #e0544a);
+}
+.dopplerit{{{cns}}} .dp-opt-recede.selected {
+    background: linear-gradient(180deg, #e0574c, #a83a32);
+}
+
+/* = KNOBS
+================================================ */
+.dopplerit{{{cns}}} .dp-knob {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    text-align: center;
+}
+.dopplerit{{{cns}}} .dp-col1  { left: 10px; }
+.dopplerit{{{cns}}} .dp-col2  { left: 110px; }
+.dopplerit{{{cns}}} .dp-col3  { left: 210px; }
+.dopplerit{{{cns}}} .dp-col12 { left: 60px; }
+.dopplerit{{{cns}}} .dp-col23 { left: 160px; }
+.dopplerit{{{cns}}} .dp-row1  { top: 158px; }
+.dopplerit{{{cns}}} .dp-row2  { top: 262px; }
+
+.dopplerit{{{cns}}} .dp-knob-image {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto;
+    background-image: url(/resources/knob-dopplerit.png{{{ns}}});
+    background-repeat: no-repeat;
+    background-position: 0px 0px;
+    background-size: 4160px 64px;
+    cursor: pointer;
+}
+.dopplerit{{{cns}}} .dp-knob-title {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #c9d1dc;
+}
+.dopplerit{{{cns}}} .dp-knob-value {
+    display: block;
+    height: 15px;
+    font-size: 11px;
+    line-height: 15px;
+    color: #7fb6ff;
+    cursor: text;
+}
+
+/* = LOOP / PASS
+================================================ */
+.dopplerit{{{cns}}} .dp-toggle {
+    position: absolute;
+    top: 384px;
+    width: 76px;
+    height: 70px;
+    text-align: center;
+}
+.dopplerit{{{cns}}} .dp-loop { left: 22px; }
+.dopplerit{{{cns}}} .dp-pass { right: 22px; }
+
+.dopplerit{{{cns}}} .dp-toggle-title {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #c9d1dc;
+}
+
+/* slide switch */
+.dopplerit{{{cns}}} .dp-switch {
+    position: relative;
+    width: 52px;
+    height: 26px;
+    margin: 10px auto 0;
+    border-radius: 13px;
+    background: #0f1217;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.dopplerit{{{cns}}} .dp-switch:after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #c3c9d3, #7a818d);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+    transition: left 0.15s;
+}
+.dopplerit{{{cns}}} .dp-switch.on {
+    background: linear-gradient(90deg, #2a6bb0, #a83a32);
+}
+.dopplerit{{{cns}}} .dp-switch.on:after {
+    left: 29px;
+}
+
+/* momentary pass button */
+.dopplerit{{{cns}}} .dp-trigger {
+    width: 36px;
+    height: 36px;
+    margin: 4px auto 0;
+    border-radius: 18px;
+    background: radial-gradient(circle at 50% 35%, #555d6b, #22262e 70%);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 0 2px #0b0d11;
+    cursor: pointer;
+}
+.dopplerit{{{cns}}} .dp-trigger.on {
+    background: radial-gradient(circle at 50% 40%, #ffffff, #7fb6ff 35%, #2a6bb0 75%);
+    box-shadow: 0 0 12px rgba(64, 160, 255, 0.8), 0 0 0 2px #0b0d11;
+}
+
+/* = BYPASS
+================================================ */
+/* mini beacon: flashes blue / red while the effect is active */
+.dopplerit{{{cns}}} .dp-led.mod-light {
+    position: absolute;
+    left: 150px;
+    top: 368px;
+    width: 20px;
+    height: 16px;
+    border-radius: 10px 10px 2px 2px;
+    background-image: none;
+    border: 1px solid #0b0d11;
+}
+.dopplerit{{{cns}}} .dp-led.mod-light.off {
+    background: linear-gradient(90deg, #1c2a3a 0%, #1c2a3a 50%, #3a1512 50%, #3a1512 100%);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+.dopplerit{{{cns}}} .dp-led.mod-light.on {
+    background: linear-gradient(90deg, #7fc0ff 0%, #2f7fe0 49%, #e0443a 51%, #ff8a7f 100%);
+    animation: dpbeacon{{{cns}}} 0.9s steps(1, end) infinite;
+}
+@keyframes dpbeacon{{{cns}}} {
+    0%   { box-shadow: -6px -2px 12px 3px rgba(64, 160, 255, 0.85); }
+    50%  { box-shadow: 6px -2px 12px 3px rgba(255, 84, 72, 0.85); }
+}
+
+.dopplerit{{{cns}}} .mod-footswitch.dp-footswitch {
+    position: absolute;
+    left: 125px;
+    top: 394px;
+    width: 70px;
+    height: 70px;
+    background-image: url(/resources/footswitch-dopplerit.png{{{ns}}});
+    background-repeat: no-repeat;
+    background-size: 70px 140px;
+    background-position: 0px -70px;
+    cursor: pointer;
+}
+.dopplerit{{{cns}}} .mod-footswitch.dp-footswitch.on {
+    background-position: 0px 0px;
+}

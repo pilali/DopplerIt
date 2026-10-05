@@ -1,0 +1,191 @@
+@prefix doap:   <http://usefulinc.com/ns/doap#> .
+@prefix foaf:   <http://xmlns.com/foaf/0.1/> .
+@prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
+@prefix mod:    <http://moddevices.com/ns/mod#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix units:  <http://lv2plug.in/ns/extensions/units#> .
+
+<https://github.com/pilali/dopplerit>
+    a lv2:Plugin , lv2:SpatialPlugin , doap:Project ;
+    doap:name "DopplerIt" ;
+    doap:license <https://spdx.org/licenses/MIT> ;
+    doap:maintainer [
+        foaf:name "pilali" ;
+        foaf:homepage <https://github.com/pilali/dopplerit> ;
+    ] ;
+    mod:brand "pilali" ;
+    mod:label "DopplerIt" ;
+    lv2:minorVersion 1 ;
+    lv2:microVersion 0 ;
+    lv2:optionalFeature lv2:hardRTCapable ;
+    rdfs:comment "Doppler effect: simulates a sound source moving towards and/or away from the listener (approach, recede or full pass-by), like the siren of a passing emergency vehicle. Mono input. Output mode Mono: the same signal on both outputs, use either one in a mono chain. Output mode Stereo: the effect is slightly offset between the left and right ears and the source is panned to widen the image." ;
+    lv2:port
+    [
+        a lv2:InputPort , lv2:AudioPort ;
+        lv2:index 0 ;
+        lv2:symbol "in" ;
+        lv2:name "In" ;
+    ] ,
+    [
+        a lv2:OutputPort , lv2:AudioPort ;
+        lv2:index 1 ;
+        lv2:symbol "out_l" ;
+        lv2:name "Out L" ;
+    ] ,
+    [
+        a lv2:OutputPort , lv2:AudioPort ;
+        lv2:index 2 ;
+        lv2:symbol "out_r" ;
+        lv2:name "Out R" ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 3 ;
+        lv2:symbol "mode" ;
+        lv2:name "Mode" ;
+        lv2:default 2 ;
+        lv2:minimum 0 ;
+        lv2:maximum 2 ;
+        lv2:portProperty lv2:integer , lv2:enumeration ;
+        lv2:scalePoint [ rdfs:label "Approach" ; rdf:value 0 ] ,
+                       [ rdfs:label "Recede" ; rdf:value 1 ] ,
+                       [ rdfs:label "Pass-by" ; rdf:value 2 ] ;
+        rdfs:comment "Approach: the source comes towards you (pitch up). Recede: the source moves away (pitch down). Pass-by: both, a complete fly-by." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 4 ;
+        lv2:symbol "speed" ;
+        lv2:name "Speed" ;
+        lv2:default 60.0 ;
+        lv2:minimum 5.0 ;
+        lv2:maximum 300.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit [
+            a units:Unit ;
+            rdfs:label "kilometers per hour" ;
+            units:symbol "km/h" ;
+            units:render "%.0f km/h"
+        ] ;
+        rdfs:comment "Speed of the virtual source. Higher speed = stronger pitch shift." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 5 ;
+        lv2:symbol "period" ;
+        lv2:name "Period" ;
+        lv2:default 4.0 ;
+        lv2:minimum 0.5 ;
+        lv2:maximum 10.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:s ;
+        rdfs:comment "Duration of one pass (how often the effect repeats in loop mode)." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 6 ;
+        lv2:symbol "distance" ;
+        lv2:name "Distance" ;
+        lv2:default 4.0 ;
+        lv2:minimum 1.0 ;
+        lv2:maximum 50.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:m ;
+        rdfs:comment "Closest distance between the source and the listener. Short = abrupt pitch change, long = smooth glide." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 7 ;
+        lv2:symbol "attenuation" ;
+        lv2:name "Attenuation" ;
+        lv2:default 60.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 100.0 ;
+        units:unit [
+            a units:Unit ;
+            rdfs:label "percent" ;
+            units:symbol "%" ;
+            units:render "%.0f%%"
+        ] ;
+        rdfs:comment "Amount of volume drop and air absorption (high cut) when the source is far away." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 8 ;
+        lv2:symbol "output" ;
+        lv2:name "Output" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:portProperty lv2:integer , lv2:enumeration ;
+        lv2:scalePoint [ rdfs:label "Mono" ; rdf:value 0 ] ,
+                       [ rdfs:label "Stereo" ; rdf:value 1 ] ;
+        rdfs:comment "Mono: simple effect, identical signal on both outputs (connect either one). Stereo: the effect is slightly offset between left and right to widen the image." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 9 ;
+        lv2:symbol "width" ;
+        lv2:name "Width" ;
+        lv2:default 50.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 100.0 ;
+        units:unit [
+            a units:Unit ;
+            rdfs:label "percent" ;
+            units:symbol "%" ;
+            units:render "%.0f%%"
+        ] ;
+        rdfs:comment "Stereo width (Output = Stereo only): offset of the effect between left and right plus panning of the moving source." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 10 ;
+        lv2:symbol "mix" ;
+        lv2:name "Dry/Wet" ;
+        lv2:default 70.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 100.0 ;
+        units:unit [
+            a units:Unit ;
+            rdfs:label "percent" ;
+            units:symbol "%" ;
+            units:render "%.0f%%"
+        ] ;
+        rdfs:comment "Dry/wet balance. Both signals are at full level at 50 %." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 11 ;
+        lv2:symbol "loop" ;
+        lv2:name "Loop" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:portProperty lv2:integer , lv2:toggled ;
+        rdfs:comment "On: passes repeat continuously. Off: one pass per trigger." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 12 ;
+        lv2:symbol "trigger" ;
+        lv2:name "Trigger" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:portProperty lv2:integer , lv2:toggled , pprops:trigger ;
+        rdfs:comment "Restart a pass from the beginning (assign it to a footswitch)." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 13 ;
+        lv2:symbol "enabled" ;
+        lv2:name "Enabled" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:designation lv2:enabled ;
+        lv2:portProperty lv2:integer , lv2:toggled ;
+    ] .
