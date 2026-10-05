@@ -29,7 +29,7 @@ puis descend quand elle s'éloigne.
 | Mode          | Approach / Recede / Pass-by | Trajectoire de la source |
 | Output        | Mono / Stereo    | Mono : le même signal sur les deux sorties (utilisez-en une seule dans une chaîne mono). Stereo : effet décalé entre gauche et droite |
 | Speed         | 5 – 300 km/h     | Vitesse de la source : plus elle est rapide, plus le décalage de hauteur est fort (±1,5 demi-ton à 100 km/h) |
-| Period        | 0,5 – 10 s       | Durée d'un passage, donc la cadence de répétition en boucle |
+| Period        | 0,5 – 16 s       | Durée d'un passage, donc la cadence de répétition en boucle. Synchronisable au tempo dans mod-ui (voir plus bas) |
 | Distance      | 1 – 50 m         | Distance minimale à l'auditeur : courte = bascule de hauteur brutale, longue = glissando doux |
 | Attenuation   | 0 – 100 %        | Baisse de volume et perte d'aigus quand la source est loin |
 | Width         | 0 – 100 %        | Stéréo uniquement : décalage de l'effet entre les oreilles et panoramique de la source |
@@ -37,6 +37,10 @@ puis descend quand elle s'éloigne.
 | Loop          | on / off         | On : passages en continu. Off : un passage par déclenchement |
 | Pass          | bouton           | Relance un passage depuis le début (à assigner à un footswitch) |
 | Bypass        | footswitch       | Désignation `lv2:enabled`, avec un fondu sans clic |
+
+### Synchronisation au tempo (mod-ui)
+
+Le port Period déclare `mod:tempoRelatedDynamicScalePoints`. Dans mod-ui, ouvrez les paramètres du plug-in (icône ⚙) et cliquez sur l'icône d'assignation de **Period**. Cochez **Tempo – Translate value to musical tempo**, choisissez la division (1/4, 1/2, 1 mesure, 2 mesures, valeurs pointées ou en triolets), puis enregistrez. Avec **Assign to: None**, la période suit simplement le tempo global ; avec un actionneur (Device, MIDI…), on change de division depuis le contrôleur. mod-ui convertit la division en secondes à partir du tempo global (`durée = 240 / (BPM × division)`) et la recalcule à chaque changement de tempo, y compris en tap tempo depuis le Dwarf.
 
 Astuce : avec **Loop = off** et **Pass** assigné à un footswitch du Dwarf, chaque
 appui déclenche un passage de « sirène ».

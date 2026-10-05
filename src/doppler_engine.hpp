@@ -58,7 +58,7 @@ struct Params {
 static constexpr float kMinSpeedKmh  = 5.0f;
 static constexpr float kMaxSpeedKmh  = 300.0f;
 static constexpr float kMinPeriod    = 0.5f;
-static constexpr float kMaxPeriod    = 10.0f;
+static constexpr float kMaxPeriod    = 16.0f;
 static constexpr float kMinDistance  = 1.0f;
 static constexpr float kMaxDistance  = 50.0f;
 
