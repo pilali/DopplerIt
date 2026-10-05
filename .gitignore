@@ -2,3 +2,4 @@
 /tests/test_engine
 /tools/node_modules
 __pycache__/
+/build-juce/

@@ -2,8 +2,11 @@
 
 ![DopplerIt modgui](dopplerit.lv2/modgui/screenshot-dopplerit.png)
 
-Plug-in audio **LV2** d'effet Doppler, optimisé pour les **MOD Dwarf / Duo / Duo X**
-et le **Raspberry Pi 5**, avec un **modgui** complet pour mod-ui.
+Plug-in audio d'effet Doppler :
+- **LV2** optimisé pour les **MOD Dwarf / Duo / Duo X** et le **Raspberry Pi 5**, avec un **modgui** complet pour mod-ui ;
+- **VST3** (Windows, Linux, macOS) et **AU** (macOS Intel + Apple Silicon) via **JUCE**, avec une interface identique au modgui.
+
+Les deux versions partagent exactement le même moteur DSP (`src/doppler_engine.hpp`) et les mêmes paramètres.
 
 Une source sonore virtuelle se déplace en ligne droite devant l'auditeur, comme la
 sirène d'un véhicule d'urgence qui passe : la hauteur monte quand elle s'approche,
@@ -69,6 +72,40 @@ DOPPLERIT_SOURCE_DIR=/path/to/DopplerIt ./build moddwarf dopplerit
 La recette passe `NOOPT=true` : ce sont les options CPU de mod-plugin-builder qui
 s'appliquent (Cortex-A53 pour le Dwarf et le Duo X, Cortex-A7 pour le Duo).
 
+### Version JUCE : VST3 (Windows / Linux / macOS) et AU (macOS)
+
+Dépendances : CMake ≥ 3.22 et un compilateur C++17 :
+- Windows : Visual Studio 2022 ;
+- macOS : Xcode ;
+- Linux : `g++` plus les paquets X11, ALSA et freetype (voir `.github/workflows/build.yml`).
+
+JUCE 8 est téléchargé automatiquement ; on peut aussi indiquer une copie locale avec `-DJUCE_DIR=/chemin/JUCE`.
+
+```sh
+# Windows / Linux
+cmake -S juce -B build-juce -DCMAKE_BUILD_TYPE=Release
+cmake --build build-juce --config Release
+
+# macOS, binaire universel Intel + Apple Silicon (VST3 + AU)
+cmake -S juce -B build-juce -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+cmake --build build-juce --config Release
+```
+
+Les plug-ins sont générés dans `build-juce/DopplerIt_artefacts/Release/` (`VST3/DopplerIt.vst3`, `AU/DopplerIt.component`).
+Ajoutez `-DDOPPLERIT_STANDALONE=ON` pour obtenir aussi une application autonome.
+
+- **macOS minimum** : 10.11 (El Capitan) pour la partie Intel, le minimum de JUCE 8. La partie Apple Silicon démarre à macOS 11, première version pour ces Mac.
+- **Entrées et sorties** : entrée mono ou stéréo (sommée en mono) ; sortie mono ou stéréo. Avec une piste de sortie mono, l'effet est automatiquement l'effet mono simple.
+- **Bypass** : le footswitch est le paramètre de bypass natif de l'hôte, avec un fondu sans clic.
+- **Interface** :
+  - même disposition 320 × 476, mêmes couleurs et mêmes images que le modgui (filmstrip du potard, footswitch, en-tête gyrophare) ;
+  - même police, Cooper Hewitt : c'est celle que mod-ui impose à tous les modgui ;
+  - la fenêtre est redimensionnable de 75 % à 300 %.
+- **CI GitHub Actions** : chaque push compile Linux, Windows et macOS universel, valide le VST3 avec pluginval (sévérité 10), valide l'AU avec `auval` en natif et sous Rosetta, puis publie les binaires en artefacts. Un tag `v*` crée une release.
+- **Signature macOS** : les binaires de la CI sont signés ad hoc. Pour les distribuer sans avertissement de Gatekeeper, il faut une signature Developer ID et une notarisation Apple. En attendant : `xattr -dr com.apple.quarantine DopplerIt.vst3`.
+
+> **Licence JUCE** : JUCE 8 est distribué sous AGPLv3 ou sous licence commerciale JUCE (une offre gratuite existe en dessous d'un certain chiffre d'affaires). Distribuer les binaires VST3/AU impose soit de respecter l'AGPLv3, soit de disposer d'une licence JUCE. Le code de DopplerIt reste sous MIT, et la version LV2 n'utilise pas JUCE.
+
 ### Tests
 
 ```sh
@@ -90,6 +127,8 @@ Les tests vérifient :
 ```
 src/doppler_engine.hpp      moteur DSP (sans dépendance)
 src/dopplerit.cpp           enveloppe LV2
+juce/                       version JUCE (VST3 / AU) : CMake, processeur, éditeur
+.github/workflows/build.yml CI : LV2 + tests, VST3 Linux/Windows/macOS, AU macOS, pluginval, auval
 dopplerit.lv2/              manifest, description des ports, modgui
 tests/test_engine.cpp       tests hors ligne du moteur
 tools/make_gui_images.py    génère le potard (filmstrip) et le footswitch
@@ -115,4 +154,4 @@ bien leurs valeurs.
 
 ## Licence
 
-MIT, voir [LICENSE](LICENSE).
+MIT, voir [LICENSE](LICENSE). La police Cooper Hewitt embarquée dans la version JUCE est sous SIL OFL 1.1 (`juce/Assets/fonts/OFL.txt`).

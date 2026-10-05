@@ -1,0 +1,40 @@
+<svg width="320" height="104" viewBox="0 0 320 104" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="dpwave" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0" stop-color="#40a0ff"/>
+            <stop offset="1" stop-color="#ff5448"/>
+        </linearGradient>
+        <linearGradient id="dpbeamb" x1="1" x2="0" y1="0" y2="0">
+            <stop offset="0" stop-color="#40a0ff" stop-opacity="0.55"/>
+            <stop offset="1" stop-color="#40a0ff" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="dpbeamr" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0" stop-color="#ff5448" stop-opacity="0.55"/>
+            <stop offset="1" stop-color="#ff5448" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="dpdome" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0" stop-color="#7fc0ff"/>
+            <stop offset="0.48" stop-color="#2f7fe0"/>
+            <stop offset="0.52" stop-color="#e0443a"/>
+            <stop offset="1" stop-color="#ff8a7f"/>
+        </linearGradient>
+        <radialGradient id="dpglow">
+            <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+            <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+        </radialGradient>
+    </defs>
+    <g fill="none" stroke="url(#dpwave)" stroke-width="2">
+        <circle cx="212" cy="58" r="28" opacity="0.70"/>
+        <circle cx="190" cy="58" r="54" opacity="0.48"/>
+        <circle cx="166" cy="58" r="82" opacity="0.30"/>
+        <circle cx="140" cy="58" r="112" opacity="0.18"/>
+        <circle cx="112" cy="58" r="144" opacity="0.10"/>
+    </g>
+    <polygon points="246,56 150,18 150,92" fill="url(#dpbeamb)"/>
+    <polygon points="262,56 320,26 320,86" fill="url(#dpbeamr)"/>
+    <circle cx="254" cy="56" r="30" fill="url(#dpglow)"/>
+    <path d="M239 70 L239 58 A15 17 0 0 1 269 58 L269 70 Z" fill="url(#dpdome)" stroke="#0b0d11" stroke-width="1.5"/>
+    <path d="M244 58 A10 12 0 0 1 252 46" fill="none" stroke="#ffffff" stroke-opacity="0.75" stroke-width="2.5" stroke-linecap="round"/>
+    <rect x="234" y="70" width="40" height="9" rx="2" fill="#3a404c" stroke="#0b0d11" stroke-width="1.5"/>
+    <rect x="230" y="78" width="48" height="5" rx="2" fill="#262a32"/>
+</svg>

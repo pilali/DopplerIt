@@ -179,7 +179,7 @@ public:
 
             // Mono output: once the width has faded out both ears are
             // identical, so only one is computed and copied.
-            if (tWidth == 0.f && width_ < 1e-4f)
+            if (tWidth <= 0.f && width_ < 1e-4f)
                 width_ = 0.f;
             ears_ = (channels_ > 1 && width_ > 0.f) ? channels_ : 1;
 
