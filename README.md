@@ -26,10 +26,11 @@ puis descend quand elle s'éloigne.
 
 | Contrôle      | Plage            | Rôle |
 |---------------|------------------|------|
-| Mode          | Approach / Recede / Pass-by | Trajectoire de la source |
+| Mode          | Approach / Recede / Pass-by / Orbit / Swing | Trajectoire de la source (voir plus bas) |
+| Engine        | Tape / Stream    | Mode de lecture : Stream (par défaut) = flux continu à faible latence ; Tape = retard physique complet (voir plus bas) |
 | Output        | Mono / Stereo    | Mono : le même signal sur les deux sorties (utilisez-en une seule dans une chaîne mono). Stereo : effet décalé entre gauche et droite |
 | Speed         | 5 – 300 km/h     | Vitesse de la source : plus elle est rapide, plus le décalage de hauteur est fort (±1,5 demi-ton à 100 km/h) |
-| Period        | 0,5 – 16 s       | Durée d'un passage, donc la cadence de répétition en boucle. Synchronisable au tempo dans mod-ui (voir plus bas) |
+| Period        | 0,1 – 16 s       | Durée d'un passage, d'un tour (Orbit) ou d'un aller-retour (Swing). Synchronisable au tempo dans mod-ui (voir plus bas) |
 | Distance      | 1 – 50 m         | Distance minimale à l'auditeur : courte = bascule de hauteur brutale, longue = glissando doux |
 | Attenuation   | 0 – 100 %        | Baisse de volume et perte d'aigus quand la source est loin |
 | Width         | 0 – 100 %        | Stéréo uniquement : décalage de l'effet entre les oreilles et panoramique de la source |
@@ -37,6 +38,21 @@ puis descend quand elle s'éloigne.
 | Loop          | on / off         | On : passages en continu. Off : un passage par déclenchement |
 | Pass          | bouton           | Relance un passage depuis le début (à assigner à un footswitch) |
 | Bypass        | footswitch       | Désignation `lv2:enabled`, avec un fondu sans clic |
+
+### Trajectoires
+
+- **Approach / Recede / Pass-by** : la source passe en ligne droite devant l'auditeur, à la distance minimale *Distance*.
+- **Orbit** : la source tourne sur un cercle dont le centre est à *Distance* de l'auditeur. Le rayon vaut *Speed × Period / 2π*. Avec une période courte (0,15 s), un rayon de quelques centimètres et une distance de 1 m, on obtient une cabine Leslie (rotation rapide) ; avec 1 à 1,5 s, la vitesse lente « chorale ».
+- **Swing** : la source fait des allers-retours devant l'auditeur (amplitude *Speed × Period / 2π*, vitesse maximale *Speed*).
+
+### Moteurs de lecture : Stream et Tape
+
+Le calcul physique (hauteur Doppler, volume, filtrage de l'air, panoramique) est le même pour les deux moteurs ; seule la lecture du signal change.
+
+- **Stream** (par défaut) : le signal est traité en flux continu, comme un delay ou une reverb. La tête de lecture suit la variation du retard physique, donc la hauteur Doppler est exacte, mais elle reste dans une fenêtre de 6 à 26 ms (jusqu'à 12 ms de plus entre les oreilles en stéréo large). Quand elle en sort, elle se recale d'environ 16 à 20 ms par un raccord de 10 ms, placé là où la forme d'onde correspond le mieux (corrélation). Il n'y a plus de relecture du passé ni de saut au rebouclage.
+- **Tape** : le retard de propagation complet. Une source lointaine est entendue avec plusieurs centaines de millisecondes, voire plusieurs secondes de retard, et chaque nouveau passage relit l'audio récent. C'est un caractère « bande magnétique / échantillon rejoué », conservé comme option.
+
+Pour réécouter le comparatif : `make demo` génère dans `build/demo/` des fichiers WAV comparatifs à partir d'un signal de test (arpège pincé puis accord tenu).
 
 ### Synchronisation au tempo (mod-ui)
 
@@ -134,7 +150,8 @@ src/dopplerit.cpp           enveloppe LV2
 juce/                       version JUCE (VST3 / AU) : CMake, processeur, éditeur
 .github/workflows/build.yml CI : LV2 + tests, VST3 Linux/Windows/macOS, AU macOS, pluginval, auval
 dopplerit.lv2/              manifest, description des ports, modgui
-tests/test_engine.cpp       tests hors ligne du moteur
+tests/test_engine.cpp       tests hors ligne du moteur (Tape et Stream)
+tools/render_demo.cpp       rendu des fichiers WAV comparatifs (make demo)
 tools/make_gui_images.py    génère le potard (filmstrip) et le footswitch
 tools/make_screenshots.mjs  capture screenshot et thumbnail depuis un mod-ui en mode dev
 mod-plugin-builder/         recette buildroot pour les appareils MOD

@@ -13,6 +13,7 @@
 namespace ParamID {
     static constexpr const char* mode        = "mode";
     static constexpr const char* output      = "output";
+    static constexpr const char* engine      = "engine";
     static constexpr const char* speed       = "speed";
     static constexpr const char* period      = "period";
     static constexpr const char* distance    = "distance";
@@ -68,6 +69,7 @@ private:
 
     std::atomic<float>* pMode = nullptr;
     std::atomic<float>* pOutput = nullptr;
+    std::atomic<float>* pEngine = nullptr;
     std::atomic<float>* pSpeed = nullptr;
     std::atomic<float>* pPeriod = nullptr;
     std::atomic<float>* pDistance = nullptr;

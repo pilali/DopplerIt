@@ -65,15 +65,19 @@
     background-clip: text;
     color: transparent;
 }
-.dopplerit{{{cns}}} .dp-output {
+.dopplerit{{{cns}}} .dp-output,
+.dopplerit{{{cns}}} .dp-engine {
     position: absolute;
     left: 20px;
     top: 74px;
-    width: 120px;
+    width: 100px;
     height: 18px;
 }
+.dopplerit{{{cns}}} .dp-engine {
+    left: 126px;
+}
 .dopplerit{{{cns}}} .dp-select.dp-select-small {
-    width: 120px;
+    width: 100px;
     height: 18px;
     border-radius: 9px;
 }
@@ -86,6 +90,12 @@
 .dopplerit{{{cns}}} .dp-opt-mono.selected,
 .dopplerit{{{cns}}} .dp-opt-stereo.selected {
     background: linear-gradient(180deg, #5b6474, #3a414e);
+}
+.dopplerit{{{cns}}} .dp-opt-tape.selected {
+    background: linear-gradient(180deg, #8a6a46, #5a4229);
+}
+.dopplerit{{{cns}}} .dp-opt-stream.selected {
+    background: linear-gradient(180deg, #2f8fa8, #1e5f72);
 }
 
 /* = MODE SELECTOR
@@ -131,6 +141,16 @@
 }
 .dopplerit{{{cns}}} .dp-opt-passby.selected {
     background: linear-gradient(90deg, #3f8fe0, #e0544a);
+}
+.dopplerit{{{cns}}} .dp-select-mode .dp-opt {
+    font-size: 9px;
+    letter-spacing: 0.5px;
+}
+.dopplerit{{{cns}}} .dp-opt-orbit.selected {
+    background: linear-gradient(180deg, #8a63e0, #5a3fb0);
+}
+.dopplerit{{{cns}}} .dp-opt-swing.selected {
+    background: linear-gradient(180deg, #2fb09c, #1f7f70);
 }
 .dopplerit{{{cns}}} .dp-opt-recede.selected {
     background: linear-gradient(180deg, #e0574c, #a83a32);

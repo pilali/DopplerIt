@@ -28,10 +28,13 @@ static int failures = 0;
 static const double kFs = 48000.0;
 static const uint32_t kBlock = 128;
 
+static int gEngine = dopplerit::kEngineTape;
+
 static Params defaults()
 {
     Params p;
     p.mode = dopplerit::kModePassBy;
+    p.engine = gEngine;
     p.speedKmh = 100.f;
     p.period = 4.f;
     p.distance = 4.f;
@@ -109,11 +112,24 @@ static bool finite(const std::vector<float>& s)
     return true;
 }
 
-int main()
+// Local frequency (Hz) over successive windows, via zero crossings
+static void freqRange(const std::vector<float>& s, double t0, double t1, double win, double& fmin, double& fmax)
+{
+    fmin = 1e9; fmax = 0.0;
+    for (double t = t0; t + win <= t1; t += win * 0.5) {
+        const double f = measureFreq(s, t, t + win);
+        fmin = std::min(fmin, f);
+        fmax = std::max(fmax, f);
+    }
+}
+
+static void genericTests(const char* name)
 {
     const double c = Engine::kSpeedOfSound;
+    const bool stream = gEngine == dopplerit::kEngineStream;
+    const double pitchTol = stream ? 0.01 : 0.004;
+    std::printf("\n===== engine %s =====\n", name);
 
-    std::printf("[closed form]\n");
     {
         // tau must satisfy c tau = |emission position|
         const double v = 30.0, d = 5.0;
@@ -139,8 +155,8 @@ int main()
         const double expDown = 1000.0 * c / (c + v);
         std::printf("         approaching %.1f Hz (theory <= %.1f), receding %.1f Hz (theory >= %.1f)\n",
                     up, expUp, down, expDown);
-        CHECK(std::fabs(up - expUp) / expUp < 0.004, "approach pitch within 0.4 %% of c/(c-v)");
-        CHECK(std::fabs(down - expDown) / expDown < 0.004, "recede pitch within 0.4 %% of c/(c+v)");
+        CHECK(std::fabs(up - expUp) / expUp < pitchTol, "approach pitch within %.1f %% of c/(c-v)", pitchTol * 100);
+        CHECK(std::fabs(down - expDown) / expDown < pitchTol, "recede pitch within %.1f %% of c/(c+v)", pitchTol * 100);
         const double mid = measureFreq(r.l, 3.98, 4.02);
         CHECK(std::fabs(mid - 1000.0) < 25.0, "pitch ~unchanged at closest point (%.1f Hz)", mid);
     }
@@ -177,8 +193,11 @@ int main()
             if (t > 8.5) { en = true; pp.loop = true; }
             if (t > 9.0) pp.stereo = false;
             if (t > 9.5) pp.stereo = true;
+            if (t > 10.0) { pp.mode = dopplerit::kModeOrbit; pp.speedKmh = 60.f; pp.period = 0.7f; pp.distance = 2.f; }
+            if (t > 11.0) pp.mode = dopplerit::kModeSwing;
+            if (t > 12.0) pp.engine = 1 - pp.engine;
         };
-        Render r = render(2, p, 10.5, 220.0, hook);
+        Render r = render(2, p, 13.0, 220.0, hook);
         CHECK(finite(r.l) && finite(r.r), "output is finite");
         // A 220 Hz sine at 0.5 shifted up to 1.32x: max natural step ~0.019.
         // Equal-power cross-fades of uncorrelated heads stay well below 0.1.
@@ -256,6 +275,76 @@ int main()
         const double el = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
         std::printf("         60 s of stereo audio rendered in %.3f s (%.2f %% of real time)\n", el, el / 60.0 * 100.0);
         CHECK(finite(r.l), "long render is finite");
+    }
+}
+
+int main()
+{
+    gEngine = dopplerit::kEngineTape;
+    genericTests("Tape");
+    gEngine = dopplerit::kEngineStream;
+    genericTests("Stream");
+
+    const double c = Engine::kSpeedOfSound;
+    std::printf("\n===== Stream specific =====\n");
+
+    std::printf("[latency stays bounded]\n");
+    for (int mode : { dopplerit::kModeApproach, dopplerit::kModeRecede, dopplerit::kModePassBy,
+                      dopplerit::kModeOrbit, dopplerit::kModeSwing }) {
+        for (int eng : { dopplerit::kEngineTape, dopplerit::kEngineStream }) {
+            Params p = defaults();
+            p.engine = eng;
+            p.mode = mode;
+            p.speedKmh = 300.f;
+            p.period = 10.f;
+            p.width = 1.f;
+            Engine* e = nullptr;
+            render(2, p, 12.0, 220.0, noHook, &e);
+            const double lat = e->maxReadDelay();
+            if (eng == dopplerit::kEngineStream)
+                CHECK(lat < 0.045, "mode %d: Stream max latency %.1f ms (%u splices)", mode, lat * 1000.0, e->spliceCount());
+            else
+                std::printf("         mode %d: Tape max latency %.0f ms\n", mode, lat * 1000.0);
+            delete e;
+        }
+    }
+
+    std::printf("[orbit: pitch swings between c/(c+v) and c/(c-v)]\n");
+    for (int eng : { dopplerit::kEngineTape, dopplerit::kEngineStream }) {
+        Params p = defaults();
+        p.engine = eng;
+        p.mode = dopplerit::kModeOrbit;
+        p.speedKmh = 72.f;          // 20 m/s
+        p.period = 1.f;             // radius 3.2 m
+        p.distance = 10.f;          // listener outside the orbit
+        Render r = render(1, p, 4.0, 1000.0, noHook);
+        double fmin, fmax;
+        freqRange(r.l, 1.0, 4.0, 0.03, fmin, fmax);
+        const double v = 20.0;
+        const double hi = 1000.0 * c / (c - v), lo = 1000.0 * c / (c + v);
+        std::printf("         %s: %.1f .. %.1f Hz (theory %.1f .. %.1f)\n", eng ? "Stream" : "Tape", fmin, fmax, lo, hi);
+        CHECK(std::fabs(fmax - hi) / hi < 0.01 && std::fabs(fmin - lo) / lo < 0.01, "%s orbit pitch range matches physics",
+              eng ? "Stream" : "Tape");
+        // periodic: same pitch one revolution later
+        const double f1 = measureFreq(r.l, 1.20, 1.25), f2 = measureFreq(r.l, 2.20, 2.25);
+        CHECK(std::fabs(f1 - f2) < 3.0, "%s orbit is periodic (%.1f vs %.1f Hz)", eng ? "Stream" : "Tape", f1, f2);
+    }
+
+    std::printf("[swing: pitch oscillates, bounded by c/(c-v)]\n");
+    {
+        Params p = defaults();
+        p.engine = dopplerit::kEngineStream;
+        p.mode = dopplerit::kModeSwing;
+        p.speedKmh = 72.f;
+        p.period = 2.f;
+        p.distance = 3.f;
+        Render r = render(1, p, 6.0, 1000.0, noHook);
+        double fmin, fmax;
+        freqRange(r.l, 1.0, 6.0, 0.03, fmin, fmax);
+        const double v = 20.0;
+        std::printf("         %.1f .. %.1f Hz\n", fmin, fmax);
+        CHECK(fmax > 1020.0 && fmin < 980.0, "swing modulates the pitch both ways");
+        CHECK(fmax < 1000.0 * c / (c - v) * 1.01 && fmin > 1000.0 * c / (c + v) * 0.99, "swing stays within physical bounds");
     }
 
     std::printf(failures ? "\n%d FAILURE(S)\n" : "\nALL TESTS PASSED\n", failures);

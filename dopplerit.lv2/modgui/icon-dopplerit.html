@@ -53,11 +53,20 @@
         </div>
     </div>
 
+    <div class="mod-control-group dp-engine" title="Engine: Tape (full physical delay) / Stream (continuous, low latency)">
+        <div class="dp-select dp-select-small" mod-role="input-control-port" mod-port-symbol="engine" mod-widget="custom-select">
+            <div class="dp-opt dp-opt-tape" mod-role="enumeration-option" mod-port-value="0">Tape</div>
+            <div class="dp-opt dp-opt-stream" mod-role="enumeration-option" mod-port-value="1">Stream</div>
+        </div>
+    </div>
+
     <div class="mod-control-group dp-mode" title="Mode">
-        <div class="dp-select" mod-role="input-control-port" mod-port-symbol="mode" mod-widget="custom-select">
+        <div class="dp-select dp-select-mode" mod-role="input-control-port" mod-port-symbol="mode" mod-widget="custom-select">
             <div class="dp-opt dp-opt-approach" mod-role="enumeration-option" mod-port-value="0">Approach</div>
             <div class="dp-opt dp-opt-passby" mod-role="enumeration-option" mod-port-value="2">Pass-by</div>
             <div class="dp-opt dp-opt-recede" mod-role="enumeration-option" mod-port-value="1">Recede</div>
+            <div class="dp-opt dp-opt-orbit" mod-role="enumeration-option" mod-port-value="3">Orbit</div>
+            <div class="dp-opt dp-opt-swing" mod-role="enumeration-option" mod-port-value="4">Swing</div>
         </div>
     </div>
 

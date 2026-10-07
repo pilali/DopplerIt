@@ -136,7 +136,7 @@ private:
     juce::Image knobStrip, footswitchSheet;
     std::unique_ptr<juce::Drawable> header;
 
-    SegmentedChoice output, mode;
+    SegmentedChoice output, engine, mode;
     FilmKnob speed, period, distance, attenuation, width, mix;
     SlideSwitch loop;
     PassButton pass;

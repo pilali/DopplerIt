@@ -347,11 +347,17 @@ Pedal::Pedal(DopplerItProcessor& proc)
              { { "Mono", 0, vgrad(Colour(0xff5b6474), Colour(0xff3a414e), { 0, 0, 1, 1 }) },
                { "Stereo", 1, vgrad(Colour(0xff5b6474), Colour(0xff3a414e), { 0, 0, 1, 1 }) } },
              9.f, 1.5f),
+      engine(*proc.apvts.getParameter(ParamID::engine),
+             { { "Tape", 0, vgrad(Colour(0xff8a6a46), Colour(0xff5a4229), { 0, 0, 1, 1 }) },
+               { "Stream", 1, vgrad(Colour(0xff2f8fa8), Colour(0xff1e5f72), { 0, 0, 1, 1 }) } },
+             9.f, 1.5f),
       mode(*proc.apvts.getParameter(ParamID::mode),
            { { "Approach", 0, vgrad(Colour(0xff3f8fe0), Colour(0xff2a6bb0), { 0, 0, 1, 1 }) },
              { "Pass-by", 2, hgrad(Colour(0xff3f8fe0), Colour(0xffe0544a), { 0, 0, 1, 1 }) },
-             { "Recede", 1, vgrad(Colour(0xffe0574c), Colour(0xffa83a32), { 0, 0, 1, 1 }) } },
-           11.f, 1.f),
+             { "Recede", 1, vgrad(Colour(0xffe0574c), Colour(0xffa83a32), { 0, 0, 1, 1 }) },
+             { "Orbit", 3, vgrad(Colour(0xff8a63e0), Colour(0xff5a3fb0), { 0, 0, 1, 1 }) },
+             { "Swing", 4, vgrad(Colour(0xff2fb09c), Colour(0xff1f7f70), { 0, 0, 1, 1 }) } },
+           9.f, 0.5f),
       speed(proc.apvts, ParamID::speed, "Speed", knobStrip),
       period(proc.apvts, ParamID::period, "Period", knobStrip),
       distance(proc.apvts, ParamID::distance, "Distance", knobStrip),
@@ -363,7 +369,8 @@ Pedal::Pedal(DopplerItProcessor& proc)
       footswitch(*proc.apvts.getParameter(ParamID::bypass), footswitchSheet)
 {
     // same coordinates as the modgui stylesheet
-    output.setBounds(20, 74, 120, 18);
+    output.setBounds(20, 74, 100, 18);
+    engine.setBounds(126, 74, 100, 18);
     mode.setBounds(20, 118, 280, 28);
 
     speed.setBounds(10, 158, 100, 100);
@@ -382,7 +389,7 @@ Pedal::Pedal(DopplerItProcessor& proc)
     footswitch.onChange = [this](bool bypassed) { led.setActive(!bypassed); };
     led.setActive(!footswitch.isBypassed());
 
-    for (auto* c : std::initializer_list<Component*> { &output, &mode, &speed, &period, &distance, &attenuation,
+    for (auto* c : std::initializer_list<Component*> { &output, &engine, &mode, &speed, &period, &distance, &attenuation,
                                                        &width, &mix, &loop, &pass, &led, &footswitch })
         addAndMakeVisible(c);
 }

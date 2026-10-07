@@ -8,6 +8,7 @@
 #   make install             install to $(DESTDIR)$(PREFIX)/lib/lv2
 #   make install-user        install to ~/.lv2
 #   make test                build and run the offline DSP tests
+#   make demo                render comparison WAV files into build/demo
 #
 
 BUNDLE   = dopplerit.lv2
@@ -81,7 +82,12 @@ test: tests/test_engine
 tests/test_engine: tests/test_engine.cpp src/doppler_engine.hpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -fno-fast-math -Isrc tests/test_engine.cpp -o $@ -lm
 
+demo: tools/render_demo.cpp src/doppler_engine.hpp
+	@mkdir -p $(BUILDDIR)/demo
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -Isrc tools/render_demo.cpp -o $(BUILDDIR)/render_demo -lm
+	$(BUILDDIR)/render_demo $(BUILDDIR)/demo
+
 clean:
 	rm -rf $(BUILDDIR) tests/test_engine
 
-.PHONY: all bundle install install-user uninstall test clean
+.PHONY: all bundle install install-user uninstall test demo clean

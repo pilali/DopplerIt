@@ -17,10 +17,10 @@
     ] ;
     mod:brand "pilali" ;
     mod:label "DopplerIt" ;
-    lv2:minorVersion 1 ;
+    lv2:minorVersion 2 ;
     lv2:microVersion 0 ;
     lv2:optionalFeature lv2:hardRTCapable ;
-    rdfs:comment "Doppler effect: simulates a sound source moving towards and/or away from the listener (approach, recede or full pass-by), like the siren of a passing emergency vehicle. Mono input. Output mode Mono: the same signal on both outputs, use either one in a mono chain. Output mode Stereo: the effect is slightly offset between the left and right ears and the source is panned to widen the image." ;
+    rdfs:comment "Doppler effect: simulates a sound source moving towards and/or away from the listener (approach, recede, full pass-by, orbit or swing), like the siren of a passing emergency vehicle. Mono input. Output mode Mono: the same signal on both outputs, use either one in a mono chain. Output mode Stereo: the effect is slightly offset between the left and right ears and the source is panned to widen the image." ;
     lv2:port
     [
         a lv2:InputPort , lv2:AudioPort ;
@@ -47,12 +47,14 @@
         lv2:name "Mode" ;
         lv2:default 2 ;
         lv2:minimum 0 ;
-        lv2:maximum 2 ;
+        lv2:maximum 4 ;
         lv2:portProperty lv2:integer , lv2:enumeration ;
         lv2:scalePoint [ rdfs:label "Approach" ; rdf:value 0 ] ,
                        [ rdfs:label "Recede" ; rdf:value 1 ] ,
-                       [ rdfs:label "Pass-by" ; rdf:value 2 ] ;
-        rdfs:comment "Approach: the source comes towards you (pitch up). Recede: the source moves away (pitch down). Pass-by: both, a complete fly-by." ;
+                       [ rdfs:label "Pass-by" ; rdf:value 2 ] ,
+                       [ rdfs:label "Orbit" ; rdf:value 3 ] ,
+                       [ rdfs:label "Swing" ; rdf:value 4 ] ;
+        rdfs:comment "Approach: the source comes towards you (pitch up). Recede: the source moves away (pitch down). Pass-by: both, a complete fly-by. Orbit: the source circles around a point (rotating speaker, Leslie-like at short periods). Swing: the source moves back and forth in front of you." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
@@ -77,11 +79,11 @@
         lv2:symbol "period" ;
         lv2:name "Period" ;
         lv2:default 4.0 ;
-        lv2:minimum 0.5 ;
+        lv2:minimum 0.1 ;
         lv2:maximum 16.0 ;
         lv2:portProperty pprops:logarithmic , mod:tempoRelatedDynamicScalePoints ;
         units:unit units:s ;
-        rdfs:comment "Duration of one pass (how often the effect repeats in loop mode). Can be synced to the tempo from the parameter addressing dialog of mod-ui." ;
+        rdfs:comment "Duration of one pass, revolution (Orbit) or oscillation (Swing). Can be synced to the tempo from the parameter addressing dialog of mod-ui." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
@@ -93,7 +95,7 @@
         lv2:maximum 50.0 ;
         lv2:portProperty pprops:logarithmic ;
         units:unit units:m ;
-        rdfs:comment "Closest distance between the source and the listener. Short = abrupt pitch change, long = smooth glide." ;
+        rdfs:comment "Closest distance between the path and the listener (Orbit: distance to the centre of the circle). Short = abrupt pitch change, long = smooth glide." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
@@ -188,4 +190,17 @@
         lv2:maximum 1 ;
         lv2:designation lv2:enabled ;
         lv2:portProperty lv2:integer , lv2:toggled ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 14 ;
+        lv2:symbol "engine" ;
+        lv2:name "Engine" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:portProperty lv2:integer , lv2:enumeration ;
+        lv2:scalePoint [ rdfs:label "Tape" ; rdf:value 0 ] ,
+                       [ rdfs:label "Stream" ; rdf:value 1 ] ;
+        rdfs:comment "Stream: continuous processing with a short, bounded latency (6 to 26 ms), the read head follows the Doppler pitch and is re-synchronised with short waveform-matched splices. Tape: full physical propagation delay, a far source is heard late and each new pass replays recent audio." ;
     ] .

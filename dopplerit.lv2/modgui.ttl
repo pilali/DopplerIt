@@ -60,5 +60,10 @@
             lv2:index 9 ;
             lv2:symbol "trigger" ;
             lv2:name "Trigger" ;
+        ] ,
+        [
+            lv2:index 10 ;
+            lv2:symbol "engine" ;
+            lv2:name "Engine" ;
         ] ;
     ] .

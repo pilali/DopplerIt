@@ -39,6 +39,7 @@ enum Control {
     kCtlLoop,
     kCtlTrigger,
     kCtlEnabled,
+    kCtlEngine,
     kCtlCount
 };
 
@@ -65,6 +66,7 @@ const PortDef kPorts[] = {
     { kPortControl, kCtlLoop },
     { kPortControl, kCtlTrigger },
     { kPortControl, kCtlEnabled },
+    { kPortControl, kCtlEngine },
 };
 
 // Defaults, used until the host connects a control port
@@ -80,6 +82,7 @@ const float kDefaults[kCtlCount] = {
     1.f,                           // loop
     0.f,                           // trigger
     1.f,                           // enabled
+    (float)dopplerit::kEngineStream, // engine
 };
 
 struct DopplerIt {
@@ -108,6 +111,7 @@ struct DopplerIt {
         p.stereo      = value(kCtlOutput) > 0.5f;
         p.mix         = value(kCtlMix) * 0.01f;
         p.loop        = value(kCtlLoop) > 0.5f;
+        p.engine      = (int)(value(kCtlEngine) + 0.5f);
         return p;
     }
 };

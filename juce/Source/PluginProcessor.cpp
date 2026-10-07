@@ -40,7 +40,10 @@ AudioProcessorValueTreeState::ParameterLayout DopplerItProcessor::createLayout()
     const int v = 1;
 
     layout.add(std::make_unique<AudioParameterChoice>(ParameterID { ParamID::mode, v }, "Mode",
-        StringArray { "Approach", "Recede", "Pass-by" }, 2));
+        StringArray { "Approach", "Recede", "Pass-by", "Orbit", "Swing" }, 2));
+
+    layout.add(std::make_unique<AudioParameterChoice>(ParameterID { ParamID::engine, v }, "Engine",
+        StringArray { "Tape", "Stream" }, 1));
 
     layout.add(std::make_unique<AudioParameterChoice>(ParameterID { ParamID::output, v }, "Output",
         StringArray { "Mono", "Stereo" }, 1));
@@ -81,6 +84,7 @@ DopplerItProcessor::DopplerItProcessor()
 {
     pMode        = apvts.getRawParameterValue(ParamID::mode);
     pOutput      = apvts.getRawParameterValue(ParamID::output);
+    pEngine      = apvts.getRawParameterValue(ParamID::engine);
     pSpeed       = apvts.getRawParameterValue(ParamID::speed);
     pPeriod      = apvts.getRawParameterValue(ParamID::period);
     pDistance    = apvts.getRawParameterValue(ParamID::distance);
@@ -97,6 +101,7 @@ dopplerit::Params DopplerItProcessor::currentParams() const
 {
     dopplerit::Params p;
     p.mode        = (int)pMode->load();
+    p.engine      = (int)pEngine->load();
     p.speedKmh    = pSpeed->load();
     p.period      = pPeriod->load();
     p.distance    = pDistance->load();
