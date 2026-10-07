@@ -64,7 +64,11 @@ static Render render(DelayParams p, double seconds, In input, Hook hook)
     return out;
 }
 
-static auto sine(double f, double a = 0.5) { return [f, a](double t) { return (float)(a * std::sin(2.0 * kPi * f * t)); }; }
+struct Sine {
+    double f, a;
+    float operator()(double t) const { return (float)(a * std::sin(2.0 * kPi * f * t)); }
+};
+static Sine sine(double f, double a = 0.5) { return Sine { f, a }; }
 static void noHook(double, DelayParams&, DelayEngine&, bool&) {}
 
 static double measureFreq(const std::vector<float>& s, double t0, double t1)
