@@ -8,6 +8,7 @@
 #   make install             install to $(DESTDIR)$(PREFIX)/lib/lv2
 #   make install-user        install to ~/.lv2
 #   make test                build and run the offline DSP tests
+#   make demo                render demo WAV files of the delay engine into build/demo
 #
 
 BUNDLE   = dopplerit.lv2
@@ -75,13 +76,22 @@ install-user:
 uninstall:
 	rm -rf $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 
-test: tests/test_engine
+test: tests/test_engine tests/test_delay
 	./tests/test_engine
+	./tests/test_delay
+
+tests/test_delay: tests/test_delay.cpp src/delay_engine.hpp
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -fno-fast-math -Isrc tests/test_delay.cpp -o $@ -lm
+
+demo: tools/render_demo.cpp src/delay_engine.hpp
+	@mkdir -p $(BUILDDIR)/demo
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -Isrc tools/render_demo.cpp -o $(BUILDDIR)/render_demo -lm
+	$(BUILDDIR)/render_demo $(BUILDDIR)/demo
 
 tests/test_engine: tests/test_engine.cpp src/doppler_engine.hpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -fno-fast-math -Isrc tests/test_engine.cpp -o $@ -lm
 
 clean:
-	rm -rf $(BUILDDIR) tests/test_engine
+	rm -rf $(BUILDDIR) tests/test_engine tests/test_delay
 
-.PHONY: all bundle install install-user uninstall test clean
+.PHONY: all bundle install install-user uninstall test demo clean
