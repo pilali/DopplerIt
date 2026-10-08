@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  *
  * The editor reproduces the MOD modgui (dopplerit.lv2/modgui) as closely as
- * possible: same 320 x 476 layout, colours, knob film strip, footswitch and
+ * possible: same 320 x 580 layout, colours, knob film strip, footswitch and
  * beacon header. The window can be resized, the content is scaled.
  */
 
@@ -125,7 +125,7 @@ private:
     bool phase = false;
 };
 
-// The 320 x 476 pedal
+// The 320 x 580 pedal
 class Pedal : public juce::Component
 {
 public:
@@ -136,8 +136,8 @@ private:
     juce::Image knobStrip, footswitchSheet;
     std::unique_ptr<juce::Drawable> header;
 
-    SegmentedChoice output, mode;
-    FilmKnob speed, period, distance, attenuation, width, mix;
+    SegmentedChoice output, heads;
+    FilmKnob time, speed, distance, period, stagger, feedback, tone, mix;
     SlideSwitch loop;
     PassButton pass;
     BeaconLed led;
@@ -154,7 +154,7 @@ public:
     void resized() override;
 
     static constexpr int kWidth = 320;
-    static constexpr int kHeight = 476;
+    static constexpr int kHeight = 580;
 
 private:
     dpui::Pedal pedal;

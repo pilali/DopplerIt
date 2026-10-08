@@ -2,48 +2,76 @@
 
 ![DopplerIt modgui](dopplerit.lv2/modgui/screenshot-dopplerit.png)
 
-Plug-in audio d'effet Doppler :
+Plug-in audio de **delay Doppler** :
 - **LV2** optimisé pour les **MOD Dwarf / Duo / Duo X** et le **Raspberry Pi 5**, avec un **modgui** complet pour mod-ui ;
 - **VST3** (Windows, Linux, macOS) et **AU** (macOS Intel + Apple Silicon) via **JUCE**, avec une interface identique au modgui.
 
-Les deux versions partagent exactement le même moteur DSP (`src/doppler_engine.hpp`) et les mêmes paramètres.
+Les deux versions partagent exactement le même moteur DSP (`src/delay_engine.hpp`) et les mêmes paramètres.
 
-Une source sonore virtuelle se déplace en ligne droite devant l'auditeur, comme la
-sirène d'un véhicule d'urgence qui passe : la hauteur monte quand elle s'approche,
-puis descend quand elle s'éloigne.
+## Principe
 
-- **1 entrée → 2 sorties**, avec un mode de sortie **Mono** ou **Stereo** dans le même plug-in.
-- Modes **Approach** (approche), **Recede** (éloignement) ou **Pass-by** (les deux).
-- Modèle physique exact (temps de propagation en forme fermée, rapport `c / (c − v·cosθ)`),
-  pas une simple approximation par LFO.
-- Atténuation de distance (loi en 1/r) et absorption de l'air (filtre passe-bas) réglables.
-- Fondus enchaînés entre les passages : aucun clic au rebouclage, au déclenchement ou
-  lors d'un changement de mode.
-- Faible charge CPU : environ 0,5 % d'un cœur x86 en stéréo, une seule « oreille »
-  calculée en mode mono.
+C'est un écho à **1 à 4 têtes en série**, comme un delay à bande multi-têtes, où chaque tête
+applique un effet Doppler de **passage de véhicule** à ce qu'elle relit, comme la sirène
+d'un véhicule d'urgence.
+
+Faire varier la durée d'un delay revient à déplacer une source sonore :
+- quand la durée raccourcit, le son monte (arrivée du véhicule) ;
+- quand elle s'allonge, le son descend (éloignement).
+
+Chaque cycle du LFO correspond à **un véhicule qui passe**. La durée suit la courbe de
+distance réelle d'un passage en ligne droite :
+- d'abord le **plateau aigu** de l'arrivée ;
+- puis la **chute** au point de passage ;
+- ensuite le **plateau grave** de l'éloignement ;
+- enfin, au cycle suivant, le **retour instantané** à l'arrivée, le véhicule suivant.
+
+En fin de cycle, la durée retrouve exactement sa valeur de départ ; seul son sens de
+variation s'inverse. Il n'y a donc ni clic ni glissement, seulement une bascule nette
+de hauteur.
+
+Les têtes sont **en série** : chaque tête retarde de *Time* le signal de la précédente et lui
+réapplique l'effet. La transposition se **cumule** d'une tête à l'autre. On entend toutes les
+têtes, et la dernière est renvoyée vers la première (feedback). Aucun découpage du son :
+les têtes de lecture se déplacent seulement, comme sur un delay analogique.
+
+- 1 entrée, 2 sorties, avec un mode **Mono** ou **Stereo** (léger décalage de l'effet entre gauche et droite).
+- Charge CPU : environ 1,2 % d'un cœur x86 avec 4 têtes en stéréo ; 4 Mio de mémoire à 48 kHz.
 
 ## Contrôles
 
-| Contrôle      | Plage            | Rôle |
-|---------------|------------------|------|
-| Mode          | Approach / Recede / Pass-by | Trajectoire de la source |
-| Output        | Mono / Stereo    | Mono : le même signal sur les deux sorties (utilisez-en une seule dans une chaîne mono). Stereo : effet décalé entre gauche et droite |
-| Speed         | 5 – 300 km/h     | Vitesse de la source : plus elle est rapide, plus le décalage de hauteur est fort (±1,5 demi-ton à 100 km/h) |
-| Period        | 0,5 – 16 s       | Durée d'un passage, donc la cadence de répétition en boucle. Synchronisable au tempo dans mod-ui (voir plus bas) |
-| Distance      | 1 – 50 m         | Distance minimale à l'auditeur : courte = bascule de hauteur brutale, longue = glissando doux |
-| Attenuation   | 0 – 100 %        | Baisse de volume et perte d'aigus quand la source est loin |
-| Width         | 0 – 100 %        | Stéréo uniquement : décalage de l'effet entre les oreilles et panoramique de la source |
-| Dry/Wet       | 0 – 100 %        | Balance son direct / effet (les deux à plein niveau à 50 %) |
-| Loop          | on / off         | On : passages en continu. Off : un passage par déclenchement |
-| Pass          | bouton           | Relance un passage depuis le début (à assigner à un footswitch) |
-| Bypass        | footswitch       | Désignation `lv2:enabled`, avec un fondu sans clic |
+| Contrôle | Plage | Rôle |
+|---|---|---|
+| Heads | 1 à 4 | Nombre de têtes en série |
+| Time | 20 ms – 1,5 s | Écart entre deux têtes, identique pour toutes. Synchronisable au tempo |
+| Speed | 5 – 300 km/h | Vitesse du véhicule, donc ampleur de la transposition (environ ±1,4 demi-ton par tête à 100 km/h) |
+| Distance | 1 – 50 m | Distance de passage : courte, la chute de hauteur au milieu est brutale ; longue, elle est progressive |
+| Period | 0,1 – 16 s | Temps entre deux véhicules (un cycle de LFO). Synchronisable au tempo |
+| Stagger | 0 – 100 % | 0 % : têtes synchrones, l'effet se cumule. Au-delà : chaque tête passe plus tard que la précédente, comme plusieurs véhicules qui se suivent ; 100/N % les répartit régulièrement (25 % pour 4 têtes) |
+| Feedback | 0 – 100 % | Réinjection de la dernière tête vers la première, avec une saturation douce qui garde la boucle stable |
+| Tone | 0 – 100 % | Passe-bas dans chaque tête : chaque répétition s'assombrit |
+| Dry/Wet | 0 – 100 % | Balance son direct / effet (les deux à plein niveau à 50 %) |
+| Output | Mono / Stereo | Mono : le même signal sur les deux sorties. Stereo : effet légèrement décalé entre gauche et droite |
+| Loop | on / off | On : passages en continu. Off : un passage par déclenchement |
+| Pass | bouton | Lance un passage (à assigner à un footswitch) |
+| Bypass | footswitch | Désignation `lv2:enabled`, avec un fondu sans clic |
+
+**La transposition n'existe que pendant le mouvement**, comme sur un vrai delay analogique
+dont on tourne le potentiomètre de durée. *Speed*, *Distance* et *Period* dessinent le
+passage ; *Time* fixe l'écart entre les têtes.
 
 ### Synchronisation au tempo (mod-ui)
 
-Le port Period déclare `mod:tempoRelatedDynamicScalePoints`. Dans mod-ui, ouvrez les paramètres du plug-in (icône ⚙) et cliquez sur l'icône d'assignation de **Period**. Cochez **Tempo – Translate value to musical tempo**, choisissez la division (1/4, 1/2, 1 mesure, 2 mesures, valeurs pointées ou en triolets), puis enregistrez. Avec **Assign to: None**, la période suit simplement le tempo global ; avec un actionneur (Device, MIDI…), on change de division depuis le contrôleur. mod-ui convertit la division en secondes à partir du tempo global (`durée = 240 / (BPM × division)`) et la recalcule à chaque changement de tempo, y compris en tap tempo depuis le Dwarf.
+Les ports **Time** et **Period** déclarent `mod:tempoRelatedDynamicScalePoints`. Dans mod-ui :
+1. ouvrez les paramètres du plug-in (icône ⚙) ;
+2. cliquez sur l'icône d'assignation de **Time** ou **Period** ;
+3. cochez **Tempo – Translate value to musical tempo** ;
+4. choisissez la division (1/4, 1/2, 1 mesure, valeurs pointées ou en triolets), puis enregistrez.
 
-Astuce : avec **Loop = off** et **Pass** assigné à un footswitch du Dwarf, chaque
-appui déclenche un passage de « sirène ».
+Avec **Assign to: None**, la valeur suit simplement le tempo global, y compris en tap tempo
+depuis le Dwarf.
+
+Astuce : avec **Loop = off** et **Pass** assigné à un footswitch du Dwarf, chaque appui fait
+passer un véhicule.
 
 ## Compilation
 
@@ -110,31 +138,33 @@ Ajoutez `-DDOPPLERIT_STANDALONE=ON` pour obtenir aussi une application autonome.
 
 > **Licence JUCE** : JUCE 8 est distribué sous AGPLv3 ou sous licence commerciale JUCE (une offre gratuite existe en dessous d'un certain chiffre d'affaires). Distribuer les binaires VST3/AU impose soit de respecter l'AGPLv3, soit de disposer d'une licence JUCE. Le code de DopplerIt reste sous MIT, et la version LV2 n'utilise pas JUCE.
 
-### Tests
+### Tests et démos
 
 ```sh
-make test
+make test   # tests hors ligne du moteur
+make demo   # fichiers WAV de démonstration dans build/demo
 ```
 
 Les tests vérifient :
-- la forme fermée du temps de propagation ;
-- la hauteur mesurée par rapport à la théorie (`c/(c−v)` et `c/(c+v)`, à 0,4 % près) ;
-- les modes de trajectoire ;
-- l'absence de discontinuité lors des boucles, déclenchements, changements de mode,
-  de paramètres et de sortie Mono/Stereo ;
-- en mode mono, que L et R sont identiques ;
-- le bypass ;
-- la mémoire allouée et la charge CPU.
+- les **plateaux de hauteur** (1 ± v/c) ;
+- le **retour instantané** de l'éloignement à l'arrivée, avec une sortie continue ;
+- l'effet de **Distance** sur la chute de hauteur ;
+- le **cumul de la transposition** d'une tête à l'autre ;
+- la **stabilité** avec 4 têtes et un feedback à 100 % ;
+- le **mode déclenché** ;
+- l'**absence de discontinuité** lors des changements de paramètres (nombre de têtes, Time, Stagger, Mono/Stereo) ;
+- le **mono**, le **bypass**, la **mémoire** et la **charge CPU**.
 
 ## Structure
 
 ```
-src/doppler_engine.hpp      moteur DSP (sans dépendance)
+src/delay_engine.hpp        moteur DSP (sans dépendance)
 src/dopplerit.cpp           enveloppe LV2
 juce/                       version JUCE (VST3 / AU) : CMake, processeur, éditeur
 .github/workflows/build.yml CI : LV2 + tests, VST3 Linux/Windows/macOS, AU macOS, pluginval, auval
 dopplerit.lv2/              manifest, description des ports, modgui
-tests/test_engine.cpp       tests hors ligne du moteur
+tests/test_delay.cpp        tests hors ligne du moteur
+tools/render_demo.cpp       rendu des fichiers WAV de démonstration (make demo)
 tools/make_gui_images.py    génère le potard (filmstrip) et le footswitch
 tools/make_screenshots.mjs  capture screenshot et thumbnail depuis un mod-ui en mode dev
 mod-plugin-builder/         recette buildroot pour les appareils MOD

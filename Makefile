@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 #
-# DopplerIt - Doppler effect LV2 plugin
+# DopplerIt - Doppler delay LV2 plugin
 #
 #   make                     build build/dopplerit.lv2 (native optimizations)
 #   make NOOPT=true          build without CPU specific flags (cross builds,
@@ -55,7 +55,7 @@ MODGUI_FILES = $(wildcard $(BUNDLE)/modgui/*)
 
 all: $(TARGET) bundle
 
-$(TARGET): src/dopplerit.cpp src/doppler_engine.hpp
+$(TARGET): src/dopplerit.cpp src/delay_engine.hpp
 	@mkdir -p $(BUILDDIR)/$(BUNDLE)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LV2_CFLAGS) src/dopplerit.cpp -o $@ $(LDFLAGS)
 
@@ -76,8 +76,7 @@ install-user:
 uninstall:
 	rm -rf $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 
-test: tests/test_engine tests/test_delay
-	./tests/test_engine
+test: tests/test_delay
 	./tests/test_delay
 
 tests/test_delay: tests/test_delay.cpp src/delay_engine.hpp
@@ -88,10 +87,7 @@ demo: tools/render_demo.cpp src/delay_engine.hpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -Isrc tools/render_demo.cpp -o $(BUILDDIR)/render_demo -lm
 	$(BUILDDIR)/render_demo $(BUILDDIR)/demo
 
-tests/test_engine: tests/test_engine.cpp src/doppler_engine.hpp
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -fno-fast-math -Isrc tests/test_engine.cpp -o $@ -lm
-
 clean:
-	rm -rf $(BUILDDIR) tests/test_engine tests/test_delay
+	rm -rf $(BUILDDIR) tests/test_delay
 
 .PHONY: all bundle install install-user uninstall test demo clean

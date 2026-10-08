@@ -3,7 +3,7 @@
  * Copyright (C) 2026 pilali
  * SPDX-License-Identifier: MIT
  *
- * Same DSP engine as the LV2 plugin (src/doppler_engine.hpp), same
+ * Same DSP engine as the LV2 plugin (src/delay_engine.hpp), same
  * parameters, ranges and defaults (dopplerit.lv2/dopplerit.ttl).
  */
 
@@ -39,32 +39,39 @@ AudioProcessorValueTreeState::ParameterLayout DopplerItProcessor::createLayout()
     AudioProcessorValueTreeState::ParameterLayout layout;
     const int v = 1;
 
-    layout.add(std::make_unique<AudioParameterChoice>(ParameterID { ParamID::mode, v }, "Mode",
-        StringArray { "Approach", "Recede", "Pass-by" }, 2));
+    layout.add(std::make_unique<AudioParameterChoice>(ParameterID { ParamID::heads, v }, "Heads",
+        StringArray { "1 head", "2 heads", "3 heads", "4 heads" }, 1));
+
+    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::time, v }, "Time",
+        logRange(dopplerit::kMinTime, dopplerit::kMaxTime, 0.001f), 0.25f,
+        withText([](float x, int) { return String(x, 2) + " s"; })));
+
+    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::speed, v }, "Speed",
+        logRange(dopplerit::kMinSpeedKmh, dopplerit::kMaxSpeedKmh, 0.1f), 100.f,
+        withText([](float x, int) { return String(roundToInt(x)) + " km/h"; })));
+
+    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::distance, v }, "Distance",
+        logRange(dopplerit::kMinDistance, dopplerit::kMaxDistance, 0.01f), 5.f,
+        withText([](float x, int) { return String(x, 2) + " m"; })));
+
+    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::period, v }, "Period",
+        logRange(dopplerit::kMinPeriod, dopplerit::kMaxPeriod, 0.01f), 2.5f,
+        withText([](float x, int) { return String(x, 2) + " s"; })));
+
+    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::stagger, v }, "Stagger",
+        NormalisableRange<float>(0.f, 100.f, 0.1f), 0.f, withText(percent)));
+
+    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::feedback, v }, "Feedback",
+        NormalisableRange<float>(0.f, 100.f, 0.1f), 35.f, withText(percent)));
+
+    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::tone, v }, "Tone",
+        NormalisableRange<float>(0.f, 100.f, 0.1f), 60.f, withText(percent)));
+
+    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::mix, v }, "Dry/Wet",
+        NormalisableRange<float>(0.f, 100.f, 0.1f), 50.f, withText(percent)));
 
     layout.add(std::make_unique<AudioParameterChoice>(ParameterID { ParamID::output, v }, "Output",
         StringArray { "Mono", "Stereo" }, 1));
-
-    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::speed, v }, "Speed",
-        logRange(dopplerit::kMinSpeedKmh, dopplerit::kMaxSpeedKmh, 0.1f), 60.f,
-        withText([](float x, int) { return String(roundToInt(x)) + " km/h"; })));
-
-    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::period, v }, "Period",
-        logRange(dopplerit::kMinPeriod, dopplerit::kMaxPeriod, 0.01f), 4.f,
-        withText([](float x, int) { return String(x, 2) + " s"; })));
-
-    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::distance, v }, "Distance",
-        logRange(dopplerit::kMinDistance, dopplerit::kMaxDistance, 0.01f), 4.f,
-        withText([](float x, int) { return String(x, 2) + " m"; })));
-
-    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::attenuation, v }, "Attenuation",
-        NormalisableRange<float>(0.f, 100.f, 0.1f), 60.f, withText(percent)));
-
-    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::width, v }, "Width",
-        NormalisableRange<float>(0.f, 100.f, 0.1f), 50.f, withText(percent)));
-
-    layout.add(std::make_unique<AudioParameterFloat>(ParameterID { ParamID::mix, v }, "Dry/Wet",
-        NormalisableRange<float>(0.f, 100.f, 0.1f), 70.f, withText(percent)));
 
     layout.add(std::make_unique<AudioParameterBool>(ParameterID { ParamID::loop, v }, "Loop", true));
     layout.add(std::make_unique<AudioParameterBool>(ParameterID { ParamID::trigger, v }, "Pass", false));
@@ -79,33 +86,37 @@ DopplerItProcessor::DopplerItProcessor()
                          .withOutput("Output", AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "DopplerIt", createLayout())
 {
-    pMode        = apvts.getRawParameterValue(ParamID::mode);
-    pOutput      = apvts.getRawParameterValue(ParamID::output);
-    pSpeed       = apvts.getRawParameterValue(ParamID::speed);
-    pPeriod      = apvts.getRawParameterValue(ParamID::period);
-    pDistance    = apvts.getRawParameterValue(ParamID::distance);
-    pAttenuation = apvts.getRawParameterValue(ParamID::attenuation);
-    pWidth       = apvts.getRawParameterValue(ParamID::width);
-    pMix         = apvts.getRawParameterValue(ParamID::mix);
-    pLoop        = apvts.getRawParameterValue(ParamID::loop);
-    pTrigger     = apvts.getRawParameterValue(ParamID::trigger);
-    pBypass      = apvts.getRawParameterValue(ParamID::bypass);
+    pHeads    = apvts.getRawParameterValue(ParamID::heads);
+    pTime     = apvts.getRawParameterValue(ParamID::time);
+    pSpeed    = apvts.getRawParameterValue(ParamID::speed);
+    pDistance = apvts.getRawParameterValue(ParamID::distance);
+    pPeriod   = apvts.getRawParameterValue(ParamID::period);
+    pStagger  = apvts.getRawParameterValue(ParamID::stagger);
+    pFeedback = apvts.getRawParameterValue(ParamID::feedback);
+    pTone     = apvts.getRawParameterValue(ParamID::tone);
+    pMix      = apvts.getRawParameterValue(ParamID::mix);
+    pOutput   = apvts.getRawParameterValue(ParamID::output);
+    pLoop     = apvts.getRawParameterValue(ParamID::loop);
+    pTrigger  = apvts.getRawParameterValue(ParamID::trigger);
+    pBypass   = apvts.getRawParameterValue(ParamID::bypass);
     bypassParam  = dynamic_cast<AudioParameterBool*>(apvts.getParameter(ParamID::bypass));
 }
 
-dopplerit::Params DopplerItProcessor::currentParams() const
+dopplerit::DelayParams DopplerItProcessor::currentParams() const
 {
-    dopplerit::Params p;
-    p.mode        = (int)pMode->load();
-    p.speedKmh    = pSpeed->load();
-    p.period      = pPeriod->load();
-    p.distance    = pDistance->load();
-    p.attenuation = pAttenuation->load() * 0.01f;
-    p.width       = pWidth->load() * 0.01f;
-    p.mix         = pMix->load() * 0.01f;
-    p.loop        = pLoop->load() > 0.5f;
-    // a mono output bus always gets the simple (single ear) effect
-    p.stereo      = pOutput->load() > 0.5f && getTotalNumOutputChannels() > 1;
+    dopplerit::DelayParams p;
+    p.heads    = (int)pHeads->load() + 1;
+    p.time     = pTime->load();
+    p.speedKmh = pSpeed->load();
+    p.distance = pDistance->load();
+    p.period   = pPeriod->load();
+    p.stagger  = pStagger->load() * 0.01f;
+    p.feedback = pFeedback->load() * 0.01f;
+    p.tone     = pTone->load() * 0.01f;
+    p.mix      = pMix->load() * 0.01f;
+    p.loop     = pLoop->load() > 0.5f;
+    // a mono output bus always gets the mono effect
+    p.stereo   = pOutput->load() > 0.5f && getTotalNumOutputChannels() > 1;
     return p;
 }
 

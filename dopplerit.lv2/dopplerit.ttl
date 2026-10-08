@@ -8,7 +8,7 @@
 @prefix units:  <http://lv2plug.in/ns/extensions/units#> .
 
 <https://github.com/pilali/dopplerit>
-    a lv2:Plugin , lv2:SpatialPlugin , doap:Project ;
+    a lv2:Plugin , lv2:DelayPlugin , doap:Project ;
     doap:name "DopplerIt" ;
     doap:license <https://spdx.org/licenses/MIT> ;
     doap:maintainer [
@@ -17,10 +17,10 @@
     ] ;
     mod:brand "pilali" ;
     mod:label "DopplerIt" ;
-    lv2:minorVersion 1 ;
+    lv2:minorVersion 2 ;
     lv2:microVersion 0 ;
     lv2:optionalFeature lv2:hardRTCapable ;
-    rdfs:comment "Doppler effect: simulates a sound source moving towards and/or away from the listener (approach, recede or full pass-by), like the siren of a passing emergency vehicle. Mono input. Output mode Mono: the same signal on both outputs, use either one in a mono chain. Output mode Stereo: the effect is slightly offset between the left and right ears and the source is panned to widen the image." ;
+    rdfs:comment "Doppler delay: an echo with 1 to 4 heads in series, like a multi-head tape delay, where every head applies a Doppler pass-by to what it reads, like the siren of a passing emergency vehicle. Each LFO cycle is one vehicle: the repeats go from the arrival pitch (higher) to the departure pitch (lower), then jump straight back to the arrival of the next vehicle. The transposition compounds from head to head. Mono input; Output Mono gives the same signal on both outputs, Output Stereo slightly offsets the effect between left and right." ;
     lv2:port
     [
         a lv2:InputPort , lv2:AudioPort ;
@@ -43,23 +43,36 @@
     [
         a lv2:InputPort , lv2:ControlPort ;
         lv2:index 3 ;
-        lv2:symbol "mode" ;
-        lv2:name "Mode" ;
+        lv2:symbol "heads" ;
+        lv2:name "Heads" ;
         lv2:default 2 ;
-        lv2:minimum 0 ;
-        lv2:maximum 2 ;
+        lv2:minimum 1 ;
+        lv2:maximum 4 ;
         lv2:portProperty lv2:integer , lv2:enumeration ;
-        lv2:scalePoint [ rdfs:label "Approach" ; rdf:value 0 ] ,
-                       [ rdfs:label "Recede" ; rdf:value 1 ] ,
-                       [ rdfs:label "Pass-by" ; rdf:value 2 ] ;
-        rdfs:comment "Approach: the source comes towards you (pitch up). Recede: the source moves away (pitch down). Pass-by: both, a complete fly-by." ;
+        lv2:scalePoint [ rdfs:label "1 head" ; rdf:value 1 ] ,
+                       [ rdfs:label "2 heads" ; rdf:value 2 ] ,
+                       [ rdfs:label "3 heads" ; rdf:value 3 ] ,
+                       [ rdfs:label "4 heads" ; rdf:value 4 ] ;
+        rdfs:comment "Number of heads in series. Each head delays the previous one by Time and applies the Doppler pass-by again: the transposition compounds from head to head." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
         lv2:index 4 ;
+        lv2:symbol "time" ;
+        lv2:name "Time" ;
+        lv2:default 0.25 ;
+        lv2:minimum 0.02 ;
+        lv2:maximum 1.5 ;
+        lv2:portProperty pprops:logarithmic , mod:tempoRelatedDynamicScalePoints ;
+        units:unit units:s ;
+        rdfs:comment "Delay between two heads (same for every head). Can be synced to the tempo in mod-ui." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 5 ;
         lv2:symbol "speed" ;
         lv2:name "Speed" ;
-        lv2:default 60.0 ;
+        lv2:default 100.0 ;
         lv2:minimum 5.0 ;
         lv2:maximum 300.0 ;
         lv2:portProperty pprops:logarithmic ;
@@ -69,37 +82,69 @@
             units:symbol "km/h" ;
             units:render "%.0f km/h"
         ] ;
-        rdfs:comment "Speed of the virtual source. Higher speed = stronger pitch shift." ;
-    ] ,
-    [
-        a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 5 ;
-        lv2:symbol "period" ;
-        lv2:name "Period" ;
-        lv2:default 4.0 ;
-        lv2:minimum 0.5 ;
-        lv2:maximum 16.0 ;
-        lv2:portProperty pprops:logarithmic , mod:tempoRelatedDynamicScalePoints ;
-        units:unit units:s ;
-        rdfs:comment "Duration of one pass (how often the effect repeats in loop mode). Can be synced to the tempo from the parameter addressing dialog of mod-ui." ;
+        rdfs:comment "Speed of the vehicle: amount of transposition (about +/- 1.4 semitone per head at 100 km/h)." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
         lv2:index 6 ;
         lv2:symbol "distance" ;
         lv2:name "Distance" ;
-        lv2:default 4.0 ;
+        lv2:default 5.0 ;
         lv2:minimum 1.0 ;
         lv2:maximum 50.0 ;
         lv2:portProperty pprops:logarithmic ;
         units:unit units:m ;
-        rdfs:comment "Closest distance between the source and the listener. Short = abrupt pitch change, long = smooth glide." ;
+        rdfs:comment "Closest distance of the pass-by: short = abrupt pitch drop, long = smooth glide." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
         lv2:index 7 ;
-        lv2:symbol "attenuation" ;
-        lv2:name "Attenuation" ;
+        lv2:symbol "period" ;
+        lv2:name "Period" ;
+        lv2:default 2.5 ;
+        lv2:minimum 0.1 ;
+        lv2:maximum 16.0 ;
+        lv2:portProperty pprops:logarithmic , mod:tempoRelatedDynamicScalePoints ;
+        units:unit units:s ;
+        rdfs:comment "Time between two vehicles (one LFO cycle). Can be synced to the tempo in mod-ui." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 8 ;
+        lv2:symbol "stagger" ;
+        lv2:name "Stagger" ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 100.0 ;
+        units:unit [
+            a units:Unit ;
+            rdfs:label "percent" ;
+            units:symbol "%" ;
+            units:render "%.0f%%"
+        ] ;
+        rdfs:comment "0 %: all heads pass in sync (the effect compounds). Higher: each head passes later than the previous one (several vehicles following each other); 100 / number of heads spreads them evenly." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 9 ;
+        lv2:symbol "feedback" ;
+        lv2:name "Feedback" ;
+        lv2:default 35.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 100.0 ;
+        units:unit [
+            a units:Unit ;
+            rdfs:label "percent" ;
+            units:symbol "%" ;
+            units:render "%.0f%%"
+        ] ;
+        rdfs:comment "Amount of the last head sent back to the first one." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 10 ;
+        lv2:symbol "tone" ;
+        lv2:name "Tone" ;
         lv2:default 60.0 ;
         lv2:minimum 0.0 ;
         lv2:maximum 100.0 ;
@@ -109,43 +154,14 @@
             units:symbol "%" ;
             units:render "%.0f%%"
         ] ;
-        rdfs:comment "Amount of volume drop and air absorption (high cut) when the source is far away." ;
+        rdfs:comment "Low-pass in every head: each repeat gets darker, like an analog delay." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 8 ;
-        lv2:symbol "output" ;
-        lv2:name "Output" ;
-        lv2:default 1 ;
-        lv2:minimum 0 ;
-        lv2:maximum 1 ;
-        lv2:portProperty lv2:integer , lv2:enumeration ;
-        lv2:scalePoint [ rdfs:label "Mono" ; rdf:value 0 ] ,
-                       [ rdfs:label "Stereo" ; rdf:value 1 ] ;
-        rdfs:comment "Mono: simple effect, identical signal on both outputs (connect either one). Stereo: the effect is slightly offset between left and right to widen the image." ;
-    ] ,
-    [
-        a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 9 ;
-        lv2:symbol "width" ;
-        lv2:name "Width" ;
-        lv2:default 50.0 ;
-        lv2:minimum 0.0 ;
-        lv2:maximum 100.0 ;
-        units:unit [
-            a units:Unit ;
-            rdfs:label "percent" ;
-            units:symbol "%" ;
-            units:render "%.0f%%"
-        ] ;
-        rdfs:comment "Stereo width (Output = Stereo only): offset of the effect between left and right plus panning of the moving source." ;
-    ] ,
-    [
-        a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 10 ;
+        lv2:index 11 ;
         lv2:symbol "mix" ;
         lv2:name "Dry/Wet" ;
-        lv2:default 70.0 ;
+        lv2:default 50.0 ;
         lv2:minimum 0.0 ;
         lv2:maximum 100.0 ;
         units:unit [
@@ -158,29 +174,42 @@
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 11 ;
+        lv2:index 12 ;
+        lv2:symbol "output" ;
+        lv2:name "Output" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:portProperty lv2:integer , lv2:enumeration ;
+        lv2:scalePoint [ rdfs:label "Mono" ; rdf:value 0 ] ,
+                       [ rdfs:label "Stereo" ; rdf:value 1 ] ;
+        rdfs:comment "Mono: same signal on both outputs (connect either one). Stereo: the effect is slightly offset between left and right." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 13 ;
         lv2:symbol "loop" ;
         lv2:name "Loop" ;
         lv2:default 1 ;
         lv2:minimum 0 ;
         lv2:maximum 1 ;
         lv2:portProperty lv2:integer , lv2:toggled ;
-        rdfs:comment "On: passes repeat continuously. Off: one pass per trigger." ;
+        rdfs:comment "On: vehicles pass continuously. Off: one pass-by per trigger." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 12 ;
+        lv2:index 14 ;
         lv2:symbol "trigger" ;
         lv2:name "Trigger" ;
         lv2:default 0 ;
         lv2:minimum 0 ;
         lv2:maximum 1 ;
         lv2:portProperty lv2:integer , lv2:toggled , pprops:trigger ;
-        rdfs:comment "Restart a pass from the beginning (assign it to a footswitch)." ;
+        rdfs:comment "Start a pass-by from the beginning (assign it to a footswitch)." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 13 ;
+        lv2:index 15 ;
         lv2:symbol "enabled" ;
         lv2:name "Enabled" ;
         lv2:default 1 ;
