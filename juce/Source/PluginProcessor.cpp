@@ -39,6 +39,9 @@ AudioProcessorValueTreeState::ParameterLayout DopplerItProcessor::createLayout()
     AudioProcessorValueTreeState::ParameterLayout layout;
     const int v = 1;
 
+    layout.add(std::make_unique<AudioParameterChoice>(ParameterID { ParamID::mode, v }, "Mode",
+        StringArray { "Approach", "Recede", "Pass-by" }, 2));
+
     layout.add(std::make_unique<AudioParameterChoice>(ParameterID { ParamID::heads, v }, "Heads",
         StringArray { "1 head", "2 heads", "3 heads", "4 heads" }, 1));
 
@@ -86,6 +89,7 @@ DopplerItProcessor::DopplerItProcessor()
                          .withOutput("Output", AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "DopplerIt", createLayout())
 {
+    pMode     = apvts.getRawParameterValue(ParamID::mode);
     pHeads    = apvts.getRawParameterValue(ParamID::heads);
     pTime     = apvts.getRawParameterValue(ParamID::time);
     pSpeed    = apvts.getRawParameterValue(ParamID::speed);
@@ -105,6 +109,7 @@ DopplerItProcessor::DopplerItProcessor()
 dopplerit::DelayParams DopplerItProcessor::currentParams() const
 {
     dopplerit::DelayParams p;
+    p.mode     = (int)pMode->load();
     p.heads    = (int)pHeads->load() + 1;
     p.time     = pTime->load();
     p.speedKmh = pSpeed->load();

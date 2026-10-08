@@ -41,10 +41,11 @@ enum Control {
     kCtlLoop,
     kCtlTrigger,
     kCtlEnabled,
+    kCtlMode,
     kCtlCount
 };
 
-// Port layout, see dopplerit.ttl: 0 in, 1 out_l, 2 out_r, then the controls
+// Port layout, see dopplerit.ttl: 0 in, 1 out_l, 2 out_r, then the controls (mode last)
 enum { kPortIn = 0, kPortOutL = 1, kPortOutR = 2, kPortFirstControl = 3 };
 
 // Defaults, used until the host connects a control port
@@ -62,6 +63,7 @@ const float kDefaults[kCtlCount] = {
     1.f,    // loop
     0.f,    // trigger
     1.f,    // enabled
+    2.f,    // mode (0 approach, 1 recede, 2 pass-by)
 };
 
 struct DopplerIt {
@@ -81,6 +83,7 @@ struct DopplerIt {
     dopplerit::DelayParams params() const
     {
         dopplerit::DelayParams p;
+        p.mode     = (int)(value(kCtlMode) + 0.5f);
         p.heads    = (int)(value(kCtlHeads) + 0.5f);
         p.time     = value(kCtlTime);
         p.speedKmh = value(kCtlSpeed);

@@ -126,6 +126,7 @@ int main(int argc, char** argv)
     writeWav(dir + "/00_dry.wav", in, in);
 
     DelayParams base;
+    base.mode = dopplerit::kModePassBy;
     base.heads = 1;
     base.time = 0.25f;
     base.speedKmh = 100.f;
@@ -178,5 +179,13 @@ int main(int argc, char** argv)
     p.speedKmh = 120.f;
     p.feedback = 0.5f;
     render(dir, "10_fast_succession.wav", in, p);
+
+    p = base;
+    p.heads = 2;
+    p.distance = 10.f;
+    p.mode = dopplerit::kModeApproach;
+    render(dir, "11_approach_heads2.wav", in, p);
+    p.mode = dopplerit::kModeRecede;
+    render(dir, "12_recede_heads2.wav", in, p);
     return 0;
 }

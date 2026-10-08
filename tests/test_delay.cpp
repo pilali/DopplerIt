@@ -28,6 +28,7 @@ static const double kC  = 343.0;
 static DelayParams defaults()
 {
     DelayParams p;
+    p.mode = dopplerit::kModePassBy;
     p.heads = 1;
     p.time = 0.5f;
     p.speedKmh = 100.f;
@@ -128,6 +129,29 @@ int main()
               "continuous output across the jump (max step %.4f)", maxStep(r.l, 4800));
     }
 
+    std::printf("[approach / recede: one half of the pass-by, new vehicle without click]\n");
+    {
+        DelayParams p = defaults();
+        p.mode = dopplerit::kModeApproach;
+        p.distance = 20.f; // gradual drop: the end of the cycle is close to the closest point
+        Render a = render(p, 9.0, sine(1000.0), noHook);
+        // cycle 4..8 s: arrival plateau early, close to 1 kHz at the end (closest point)
+        const double early = measureFreq(a.l, 4.3, 5.3), late = measureFreq(a.l, 7.85, 7.98);
+        const double next = measureFreq(a.l, 8.03, 8.3);
+        CHECK(std::fabs(early - 1000.0 * (1.0 + k)) < 3.0 && late < 1030.0 && next > 1070.0,
+              "Approach: %.1f Hz -> %.1f Hz at the closest point -> %.1f Hz (next vehicle)", early, late, next);
+        // equal-power cross-fade of two uncorrelated reads: up to sqrt(2) x a single sine
+        CHECK(maxStep(a.l, 4800) < 0.5 * 2.0 * kPi * 1000.0 * (1.0 + k) / kFs * 1.5,
+              "Approach: continuous across the restart (max step %.4f)", maxStep(a.l, 4800));
+        p.mode = dopplerit::kModeRecede;
+        Render r = render(p, 9.0, sine(1000.0), noHook);
+        const double rEarly = measureFreq(r.l, 4.02, 4.15), rLate = measureFreq(r.l, 6.7, 7.7);
+        CHECK(rEarly > 970.0 && std::fabs(rLate - 1000.0 * (1.0 - k)) < 3.0,
+              "Recede: %.1f Hz at the closest point -> %.1f Hz (departure plateau)", rEarly, rLate);
+        CHECK(maxStep(r.l, 4800) < 0.5 * 2.0 * kPi * 1000.0 * (1.0 + k) / kFs * 1.5,
+              "Recede: continuous across the restart (max step %.4f)", maxStep(r.l, 4800));
+    }
+
     std::printf("[sharpness: distance controls the pitch drop at the closest point]\n");
     {
         DelayParams p = defaults();
@@ -180,7 +204,8 @@ int main()
         p.heads = 4; p.time = 0.2f; p.period = 1.f; p.speedKmh = 150.f;
         double maxMove = 0.0, prevD = -1.0;
         auto hook = [&](double t, DelayParams& q, DelayEngine& e, bool&) {
-            if (prevD >= 0.0) maxMove = std::max(maxMove, std::fabs(e.currentDelay(0, 0) - prevD));
+            // mode changes jump the read head on purpose (cross-faded): measure before
+            if (prevD >= 0.0 && t < 7.25) maxMove = std::max(maxMove, std::fabs(e.currentDelay(0, 0) - prevD));
             prevD = e.currentDelay(0, 0);
             if (t > 2.0 && t < 2.003) e.trigger();
             if (t > 3.0) q.heads = 2;
@@ -188,6 +213,8 @@ int main()
             if (t > 5.0) q.time = 0.6f;
             if (t > 6.0) q.stereo = false;
             if (t > 7.0) { q.heads = 3; q.loop = false; }
+            if (t > 7.3) q.mode = dopplerit::kModeApproach;
+            if (t > 7.6) q.mode = dopplerit::kModeRecede;
         };
         Render r = render(p, 8.0, sine(220.0), hook);
         // 4 coherent heads (total amplitude <= 1) at up to 4x pitch (pass-by and time knob jumps)

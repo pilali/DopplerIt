@@ -11,6 +11,7 @@
 #include "delay_engine.hpp"
 
 namespace ParamID {
+    static constexpr const char* mode     = "mode";
     static constexpr const char* heads    = "heads";
     static constexpr const char* time     = "time";
     static constexpr const char* speed    = "speed";
@@ -68,6 +69,7 @@ private:
     juce::AudioBuffer<float> scratch; // [0] mono input, [1] spare output
     bool lastTrigger = false;
 
+    std::atomic<float>* pMode = nullptr;
     std::atomic<float>* pHeads = nullptr;
     std::atomic<float>* pTime = nullptr;
     std::atomic<float>* pSpeed = nullptr;

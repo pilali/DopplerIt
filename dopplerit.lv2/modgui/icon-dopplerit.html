@@ -53,8 +53,16 @@
         </div>
     </div>
 
-    <div class="mod-control-group dp-mode" title="Heads: number of heads in series">
-        <div class="dp-select" mod-role="input-control-port" mod-port-symbol="heads" mod-widget="custom-select">
+    <div class="mod-control-group dp-mode" title="Mode: arrival, full pass-by or departure">
+        <div class="dp-select" mod-role="input-control-port" mod-port-symbol="mode" mod-widget="custom-select">
+            <div class="dp-opt dp-opt-approach" mod-role="enumeration-option" mod-port-value="0">Approach</div>
+            <div class="dp-opt dp-opt-passby" mod-role="enumeration-option" mod-port-value="2">Pass-by</div>
+            <div class="dp-opt dp-opt-recede" mod-role="enumeration-option" mod-port-value="1">Recede</div>
+        </div>
+    </div>
+
+    <div class="mod-control-group dp-heads" title="Heads: number of heads in series">
+        <div class="dp-select dp-select-heads" mod-role="input-control-port" mod-port-symbol="heads" mod-widget="custom-select">
             <div class="dp-opt dp-opt-h1" mod-role="enumeration-option" mod-port-value="1">1 head</div>
             <div class="dp-opt dp-opt-h2" mod-role="enumeration-option" mod-port-value="2">2 heads</div>
             <div class="dp-opt dp-opt-h3" mod-role="enumeration-option" mod-port-value="3">3 heads</div>

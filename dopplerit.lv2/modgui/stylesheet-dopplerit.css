@@ -3,7 +3,7 @@
 .dopplerit{{{cns}}} {
     position: absolute;
     width: 320px;
-    height: 580px;
+    height: 608px;
     border-radius: 14px;
     background:
         radial-gradient(ellipse at 50% 0%, rgba(64, 160, 255, 0.10), rgba(0, 0, 0, 0) 60%),
@@ -126,6 +126,34 @@
     color: #ffffff;
     text-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
 }
+.dopplerit{{{cns}}} .dp-opt-approach.selected {
+    background: linear-gradient(180deg, #3f8fe0, #2a6bb0);
+}
+.dopplerit{{{cns}}} .dp-opt-passby.selected {
+    background: linear-gradient(90deg, #3f8fe0, #e0544a);
+}
+.dopplerit{{{cns}}} .dp-opt-recede.selected {
+    background: linear-gradient(180deg, #e0574c, #a83a32);
+}
+
+/* = HEADS SELECTOR
+================================================ */
+.dopplerit{{{cns}}} .dp-heads {
+    position: absolute;
+    left: 20px;
+    top: 150px;
+    width: 280px;
+    height: 22px;
+}
+.dopplerit{{{cns}}} .dp-select.dp-select-heads {
+    height: 22px;
+    border-radius: 11px;
+}
+.dopplerit{{{cns}}} .dp-select-heads .dp-opt {
+    height: 22px;
+    line-height: 22px;
+    font-size: 10px;
+}
 .dopplerit{{{cns}}} .dp-opt-h1.selected {
     background: linear-gradient(180deg, #3f8fe0, #2a6bb0);
 }
@@ -152,9 +180,9 @@
 .dopplerit{{{cns}}} .dp-col3  { left: 210px; }
 .dopplerit{{{cns}}} .dp-col12 { left: 60px; }
 .dopplerit{{{cns}}} .dp-col23 { left: 160px; }
-.dopplerit{{{cns}}} .dp-row1  { top: 158px; }
-.dopplerit{{{cns}}} .dp-row2  { top: 262px; }
-.dopplerit{{{cns}}} .dp-row3  { top: 366px; }
+.dopplerit{{{cns}}} .dp-row1  { top: 186px; }
+.dopplerit{{{cns}}} .dp-row2  { top: 290px; }
+.dopplerit{{{cns}}} .dp-row3  { top: 394px; }
 
 .dopplerit{{{cns}}} .dp-knob-image {
     width: 64px;
@@ -188,7 +216,7 @@
 ================================================ */
 .dopplerit{{{cns}}} .dp-toggle {
     position: absolute;
-    top: 488px;
+    top: 516px;
     width: 76px;
     height: 70px;
     text-align: center;
@@ -258,7 +286,7 @@
 .dopplerit{{{cns}}} .dp-led.mod-light {
     position: absolute;
     left: 150px;
-    top: 472px;
+    top: 500px;
     width: 20px;
     height: 16px;
     border-radius: 10px 10px 2px 2px;
@@ -281,7 +309,7 @@
 .dopplerit{{{cns}}} .mod-footswitch.dp-footswitch {
     position: absolute;
     left: 125px;
-    top: 498px;
+    top: 526px;
     width: 70px;
     height: 70px;
     background-image: url(/resources/footswitch-dopplerit.png{{{ns}}});

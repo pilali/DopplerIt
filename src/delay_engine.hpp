@@ -18,6 +18,12 @@
  * the delay is continuous (no click, no swoop) while its slope flips: the
  * pitch jumps straight from "departure" back to "arrival", the next vehicle.
  *
+ * Modes: Pass-by = the whole curve; Approach = the arrival half only (high
+ * pitch settling at the closest point); Recede = the departure half only
+ * (from the closest point, pitch going down). In Approach and Recede the
+ * delay does not come back to where it started, so each new vehicle jumps
+ * the read head with a short (20 ms) cross-fade.
+ *
  *   speed    -> plateau pitch ratios 1 + v/c (arrival) and 1 - v/c (departure)
  *   distance -> how abrupt the pitch drop is at the closest point
  *   period   -> time between two vehicles
@@ -41,7 +47,14 @@
 
 namespace dopplerit {
 
+enum Mode : int {
+    kModeApproach = 0, // arrival half only: high pitch settling at the closest point
+    kModeRecede   = 1, // departure half only: from the closest point, pitch going down
+    kModePassBy   = 2, // full pass-by: arrival then departure
+};
+
 struct DelayParams {
+    int   mode;     // Mode
     int   heads;    // 1..4
     float time;     // s, mean delay of each head (spacing between heads)
     float speedKmh; // vehicle speed: pitch amount
@@ -75,6 +88,7 @@ public:
     static constexpr double kMaxShrink    = 1.0;   // delay shrink rate limit: pitch <= 2x per head
     static constexpr double kMaxGrow      = 0.5;   // delay growth rate limit: pitch >= 0.5x per head
     static constexpr double kStereoOffset = 0.03;  // LFO lag of the right channel (cycle)
+    static constexpr double kRestartFade  = 0.020; // s, new vehicle cross-fade (Approach / Recede)
     static constexpr double kPi           = 3.14159265358979323846;
 
     DelayEngine() = default;
@@ -105,6 +119,9 @@ public:
             }
 
         smooth_  = (float)(1.0 - std::exp(-1.0 / (0.030 * fs_)));
+        fadeLen_ = (int)(kRestartFade * fs_);
+        if (fadeLen_ < 16)
+            fadeLen_ = 16;
         inertia_ = 1.0 - std::exp(-1.0 / (kInertia * fs_));
         hpCoef_  = (float)(1.0 - std::exp(-2.0 * kPi * 40.0 / fs_));
         return true;
@@ -127,6 +144,8 @@ public:
                 if (s.buf != nullptr)
                     std::memset(s.buf, 0, size_ * sizeof(float));
                 s.lp = 0.f;
+                s.fade = 0;
+                s.prevPos = 0.0;
             }
             fbHp_[c] = 0.f;
             fbOut_[c] = 0.f;
@@ -144,6 +163,7 @@ public:
         stereo_   = (channels_ > 1 && p.stereo) ? 1.f : 0.f;
         enabled_  = 1.f;
         heads_    = clampHeads(p.heads);
+        mode_     = clampMode(p.mode);
         for (int h = 0; h < kMaxHeads; ++h)
             headGain_[h] = h < heads_ ? 1.f : 0.f;
 
@@ -153,8 +173,11 @@ public:
         updateCurve();
         lpCoef_ = toneCoef();
         for (int c = 0; c < kMaxChannels; ++c)
-            for (int h = 0; h < kMaxHeads; ++h)
+            for (int h = 0; h < kMaxHeads; ++h) {
                 stage_[c][h].d = targetDelay(c, h, p.loop);
+                stage_[c][h].dPrev = stage_[c][h].d;
+                stage_[c][h].prevPos = lfoPos(c, h, p.loop);
+            }
     }
 
     // Start one pass-by from its beginning (footswitch / trigger button)
@@ -173,6 +196,11 @@ public:
         const float tSt    = (channels_ > 1 && p.stereo) ? 1.f : 0.f;
         const float tEn    = enabled ? 1.f : 0.f;
         const int   tHeads = clampHeads(p.heads);
+        const int   tMode  = clampMode(p.mode);
+        bool modeChanged = tMode != mode_;
+        mode_ = tMode;
+        if (modeChanged)
+            updateCurve();
 
         if (triggerPending_) {
             triggerPending_ = false;
@@ -237,13 +265,35 @@ public:
                     Stage& s = stage_[c][h];
                     s.buf[writePos_] = sig;
 
+                    const double pos = lfoPos(c, h, p.loop);
                     const double tgt = targetDelay(c, h, p.loop);
-                    double step = inertia_ * (tgt - s.d);
-                    const double up = kMaxGrow / fs_, down = kMaxShrink / fs_;
-                    step = step > up ? up : (step < -down ? -down : step);
-                    s.d += step;
+                    // Approach / Recede: the curve does not come back to its start, so
+                    // a new vehicle jumps the read head; cross-fade from the old position
+                    const bool wrapped = mode_ != kModePassBy && pos < s.prevPos - 0.5;
+                    s.prevPos = pos;
+                    if (wrapped || modeChanged) {
+                        s.dOld = s.d;
+                        s.slopeOld = s.d - s.dPrev;
+                        s.fade = fadeLen_;
+                        s.dPrev = s.d;
+                        s.d = tgt;
+                    } else {
+                        double step = inertia_ * (tgt - s.d);
+                        const double up = kMaxGrow / fs_, down = kMaxShrink / fs_;
+                        step = step > up ? up : (step < -down ? -down : step);
+                        s.dPrev = s.d;
+                        s.d += step;
+                    }
 
-                    const float y = read(s.buf, s.d * fs_);
+                    float y = read(s.buf, s.d * fs_);
+                    if (s.fade > 0) {
+                        // the old head keeps its pitch while fading out (equal power)
+                        s.dOld += s.slopeOld;
+                        const float yo = read(s.buf, s.dOld * fs_);
+                        const double xf = 1.0 - (double)s.fade / (double)fadeLen_;
+                        y = (float)(y * std::sin(0.5 * kPi * xf) + yo * std::cos(0.5 * kPi * xf));
+                        --s.fade;
+                    }
                     s.lp += lpCoef_ * (y - s.lp);
                     sig = s.lp;
                     sum += headGain_[h] * sig;
@@ -252,6 +302,8 @@ public:
                     last += (headGain_[h] - next) * sig;
                 }
                 wet[c] = sum * norm;
+                if (c == ch - 1)
+                    modeChanged = false;
 
                 // feedback from the last active head
                 fbHp_[c] += hpCoef_ * (last - fbHp_[c]);
@@ -261,9 +313,11 @@ public:
             if (ch < channels_) {
                 // mono: keep the right channel in sync for a click-free switch to stereo
                 for (int h = 0; h < kMaxHeads; ++h) {
-                    stage_[1][h].d  = stage_[0][h].d;
-                    stage_[1][h].lp = stage_[0][h].lp;
-                    stage_[1][h].buf[writePos_] = stage_[0][h].buf[writePos_];
+                    Stage& r = stage_[1][h];
+                    const Stage& l = stage_[0][h];
+                    r.d = l.d; r.dPrev = l.dPrev; r.dOld = l.dOld; r.slopeOld = l.slopeOld;
+                    r.fade = l.fade; r.prevPos = l.prevPos; r.lp = l.lp;
+                    r.buf[writePos_] = l.buf[writePos_];
                 }
                 fbHp_[1] = fbHp_[0];
                 fbOut_[1] = fbOut_[0];
@@ -297,11 +351,16 @@ private:
     struct Stage {
         float* buf = nullptr;
         double d   = 0.1; // s, current (smoothed) delay
+        double dPrev = 0.1;
+        double dOld = 0.1, slopeOld = 0.0; // fading-out head (new vehicle)
+        int    fade = 0;
+        double prevPos = 0.0;
         float  lp  = 0.f;
     };
 
     static float clampf(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
     static int clampHeads(int h) { return h < 1 ? 1 : (h > kMaxHeads ? kMaxHeads : h); }
+    static int clampMode(int m) { return m < kModeApproach ? kModeApproach : (m > kModePassBy ? kModePassBy : m); }
 
     // smooth saturation, ~linear below 0.5, bounded by +/-1
     static float softClip(float x)
@@ -324,12 +383,15 @@ private:
     // Excursion chosen so that the plateau slopes give pitch ratios 1 +/- v/c.
     void updateCurve()
     {
+        // Pass-by covers u = -1..1 in one period; Approach (-1..0) and Recede
+        // (0..1) cover half the curve in a full period, at the same speed.
+        const double frac  = mode_ == kModePassBy ? 0.5 : 1.0;
         const double v     = (double)speed_;
-        const double half  = v * (double)period_ * 0.5;            // half path length (m)
+        const double half  = v * (double)period_ * frac;           // half path length (m)
         curveS_            = (double)distance_ / (half > 1e-6 ? half : 1e-6);
         curveH1_           = std::sqrt(1.0 + curveS_ * curveS_) - curveS_;
-        // plateau slope of D: dD/dt = swing * 2 / (period * h1) = v / c
-        double swing       = (v / kSpeedOfSound) * (double)period_ * curveH1_ * 0.5;
+        // plateau slope of D: dD/dt = swing / (period * frac * h1) = v / c
+        double swing       = (v / kSpeedOfSound) * (double)period_ * curveH1_ * frac;
         const double maxSw = kMaxSwing * (double)time_;
         swing_             = swing > maxSw ? maxSw : swing;
     }
@@ -349,9 +411,11 @@ private:
 
     double targetDelay(int c, int h, bool loop) const
     {
-        const double u  = 2.0 * lfoPos(c, h, loop) - 1.0;
+        const double pos = lfoPos(c, h, loop);
+        const double u   = mode_ == kModePassBy ? 2.0 * pos - 1.0
+                         : (mode_ == kModeApproach ? pos - 1.0 : pos);
         const double hn = (std::sqrt(u * u + curveS_ * curveS_) - curveS_) / (curveH1_ > 1e-9 ? curveH1_ : 1e-9);
-        // hn: 1 at both ends of the cycle, 0 at the closest point
+        // hn: 1 far away (u = +/-1), 0 at the closest point (u = 0)
         return (double)time_ + swing_ * (hn - 0.5);
     }
 
@@ -387,6 +451,8 @@ private:
     bool   triggerPending_ = false;
 
     int   heads_ = 1;
+    int   mode_  = kModePassBy;
+    int   fadeLen_ = 960;
     float headGain_[kMaxHeads] = { 1.f, 0.f, 0.f, 0.f };
     float time_ = 0.3f, speed_ = 20.f, distance_ = 10.f, period_ = 2.f, stagger_ = 0.f;
     float feedback_ = 0.f, tone_ = 0.5f, mix_ = 0.5f, stereo_ = 1.f, enabled_ = 1.f;

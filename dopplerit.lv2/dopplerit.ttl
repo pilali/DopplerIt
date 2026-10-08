@@ -20,7 +20,7 @@
     lv2:minorVersion 2 ;
     lv2:microVersion 0 ;
     lv2:optionalFeature lv2:hardRTCapable ;
-    rdfs:comment "Doppler delay: an echo with 1 to 4 heads in series, like a multi-head tape delay, where every head applies a Doppler pass-by to what it reads, like the siren of a passing emergency vehicle. Each LFO cycle is one vehicle: the repeats go from the arrival pitch (higher) to the departure pitch (lower), then jump straight back to the arrival of the next vehicle. The transposition compounds from head to head. Mono input; Output Mono gives the same signal on both outputs, Output Stereo slightly offsets the effect between left and right." ;
+    rdfs:comment "Doppler delay: an echo with 1 to 4 heads in series, like a multi-head tape delay, where every head applies a Doppler pass-by to what it reads, like the siren of a passing emergency vehicle. Each LFO cycle is one vehicle: in Pass-by mode the repeats go from the arrival pitch (higher) to the departure pitch (lower), then jump straight back to the arrival of the next vehicle; Approach and Recede keep only one half of the pass-by. The transposition compounds from head to head. Mono input; Output Mono gives the same signal on both outputs, Output Stereo slightly offsets the effect between left and right." ;
     lv2:port
     [
         a lv2:InputPort , lv2:AudioPort ;
@@ -217,4 +217,18 @@
         lv2:maximum 1 ;
         lv2:designation lv2:enabled ;
         lv2:portProperty lv2:integer , lv2:toggled ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 16 ;
+        lv2:symbol "mode" ;
+        lv2:name "Mode" ;
+        lv2:default 2 ;
+        lv2:minimum 0 ;
+        lv2:maximum 2 ;
+        lv2:portProperty lv2:integer , lv2:enumeration ;
+        lv2:scalePoint [ rdfs:label "Approach" ; rdf:value 0 ] ,
+                       [ rdfs:label "Recede" ; rdf:value 1 ] ,
+                       [ rdfs:label "Pass-by" ; rdf:value 2 ] ;
+        rdfs:comment "Pass-by: arrival (pitch up) then departure (pitch down), then straight back to the arrival of the next vehicle. Approach: arrival only, settling at the closest point. Recede: departure only, from the closest point." ;
     ] .

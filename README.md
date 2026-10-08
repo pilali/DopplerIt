@@ -41,6 +41,7 @@ les têtes de lecture se déplacent seulement, comme sur un delay analogique.
 
 | Contrôle | Plage | Rôle |
 |---|---|---|
+| Mode | Approach / Pass-by / Recede | Pass-by : arrivée puis éloignement, et retour instantané à l'arrivée du véhicule suivant. Approach : seulement l'arrivée (le son aigu se stabilise au point de passage). Recede : seulement l'éloignement (le son part du point de passage et descend). En Approach et Recede, chaque nouveau véhicule repart avec un fondu de 20 ms |
 | Heads | 1 à 4 | Nombre de têtes en série |
 | Time | 20 ms – 1,5 s | Écart entre deux têtes, identique pour toutes. Synchronisable au tempo |
 | Speed | 5 – 300 km/h | Vitesse du véhicule, donc ampleur de la transposition (environ ±1,4 demi-ton par tête à 100 km/h) |

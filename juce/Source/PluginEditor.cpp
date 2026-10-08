@@ -347,12 +347,17 @@ Pedal::Pedal(DopplerItProcessor& proc)
              { { "Mono", 0, vgrad(Colour(0xff5b6474), Colour(0xff3a414e), { 0, 0, 1, 1 }) },
                { "Stereo", 1, vgrad(Colour(0xff5b6474), Colour(0xff3a414e), { 0, 0, 1, 1 }) } },
              9.f, 1.5f),
+      mode(*proc.apvts.getParameter(ParamID::mode),
+           { { "Approach", 0, vgrad(Colour(0xff3f8fe0), Colour(0xff2a6bb0), { 0, 0, 1, 1 }) },
+             { "Pass-by", 2, hgrad(Colour(0xff3f8fe0), Colour(0xffe0544a), { 0, 0, 1, 1 }) },
+             { "Recede", 1, vgrad(Colour(0xffe0574c), Colour(0xffa83a32), { 0, 0, 1, 1 }) } },
+           11.f, 1.f),
       heads(*proc.apvts.getParameter(ParamID::heads),
             { { "1 head", 0, vgrad(Colour(0xff3f8fe0), Colour(0xff2a6bb0), { 0, 0, 1, 1 }) },
               { "2 heads", 1, hgrad(Colour(0xff3f8fe0), Colour(0xff8a63e0), { 0, 0, 1, 1 }) },
               { "3 heads", 2, hgrad(Colour(0xff8a63e0), Colour(0xffe0544a), { 0, 0, 1, 1 }) },
               { "4 heads", 3, vgrad(Colour(0xffe0574c), Colour(0xffa83a32), { 0, 0, 1, 1 }) } },
-            11.f, 1.f),
+            10.f, 1.f),
       time(proc.apvts, ParamID::time, "Time", knobStrip),
       speed(proc.apvts, ParamID::speed, "Speed", knobStrip),
       distance(proc.apvts, ParamID::distance, "Distance", knobStrip),
@@ -367,27 +372,28 @@ Pedal::Pedal(DopplerItProcessor& proc)
 {
     // same coordinates as the modgui stylesheet
     output.setBounds(20, 74, 120, 18);
-    heads.setBounds(20, 118, 280, 28);
+    mode.setBounds(20, 118, 280, 28);
+    heads.setBounds(20, 150, 280, 22);
 
-    time.setBounds(10, 158, 100, 100);
-    speed.setBounds(110, 158, 100, 100);
-    distance.setBounds(210, 158, 100, 100);
-    period.setBounds(10, 262, 100, 100);
-    stagger.setBounds(110, 262, 100, 100);
-    feedback.setBounds(210, 262, 100, 100);
-    tone.setBounds(60, 366, 100, 100);
-    mix.setBounds(160, 366, 100, 100);
+    time.setBounds(10, 186, 100, 100);
+    speed.setBounds(110, 186, 100, 100);
+    distance.setBounds(210, 186, 100, 100);
+    period.setBounds(10, 290, 100, 100);
+    stagger.setBounds(110, 290, 100, 100);
+    feedback.setBounds(210, 290, 100, 100);
+    tone.setBounds(60, 394, 100, 100);
+    mix.setBounds(160, 394, 100, 100);
 
-    loop.setBounds(22 + 12, 488 + 10, 52, 26);
-    pass.setBounds(320 - 22 - 76 + 20, 488 + 4, 36, 36);
+    loop.setBounds(22 + 12, 516 + 10, 52, 26);
+    pass.setBounds(320 - 22 - 76 + 20, 516 + 4, 36, 36);
 
-    led.setBounds(150 - 20, 472 - 20, 60, 56);
+    led.setBounds(150 - 20, 500 - 20, 60, 56);
     led.setInterceptsMouseClicks(false, false);
-    footswitch.setBounds(125, 498, 70, 70);
+    footswitch.setBounds(125, 526, 70, 70);
     footswitch.onChange = [this](bool bypassed) { led.setActive(!bypassed); };
     led.setActive(!footswitch.isBypassed());
 
-    for (auto* c : std::initializer_list<Component*> { &output, &heads, &time, &speed, &distance, &period, &stagger,
+    for (auto* c : std::initializer_list<Component*> { &output, &mode, &heads, &time, &speed, &distance, &period, &stagger,
                                                        &feedback, &tone, &mix, &loop, &pass, &led, &footswitch })
         addAndMakeVisible(c);
 }
@@ -450,8 +456,8 @@ void Pedal::paint(Graphics& g)
     // loop / pass titles
     g.setColour(kTitleText);
     g.setFont(cssFont(11.f, true, 1.f));
-    g.drawText("LOOP", Rectangle<float>(22.f, 488.f + 42.f, 76.f, 11.f * kLineHeight), Justification::centred, false);
-    g.drawText("PASS", Rectangle<float>(320.f - 22.f - 76.f, 488.f + 46.f, 76.f, 11.f * kLineHeight), Justification::centred, false);
+    g.drawText("LOOP", Rectangle<float>(22.f, 516.f + 42.f, 76.f, 11.f * kLineHeight), Justification::centred, false);
+    g.drawText("PASS", Rectangle<float>(320.f - 22.f - 76.f, 516.f + 46.f, 76.f, 11.f * kLineHeight), Justification::centred, false);
 }
 
 } // namespace dpui
