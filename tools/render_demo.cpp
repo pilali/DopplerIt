@@ -17,7 +17,7 @@ using dopplerit::DelayEngine;
 using dopplerit::DelayParams;
 
 static const double kFs = 48000.0;
-static const double kDur = 14.0;
+static const double kDur = 16.0;
 
 // Karplus-Strong plucked string
 static void pluck(std::vector<float>& out, double start, double freq, double dur, float amp, uint32_t& seed)
@@ -55,13 +55,22 @@ static std::vector<float> testSignal()
     const double phrase[] = { 329.63, 392.00, 440.00, 392.00, 329.63, 293.66 };
     for (int i = 0; i < 6; ++i)
         pluck(s, 6.5 + i * 0.25, phrase[i], 0.22, 0.5f, seed);
-    // final chord, then silence for the tails
+    // chord
     for (double f : { 98.00, 146.83, 196.00, 246.94 })
         pluck(s, 9.0, f, 0.6, 0.35f, seed);
+    // sustained note (soft organ) to hear the whole pass-by curve
+    for (size_t i = (size_t)(11.0 * kFs); i < (size_t)(14.0 * kFs); ++i) {
+        const double t = (double)i / kFs - 11.0;
+        const double env = std::min(1.0, t / 0.05) * std::min(1.0, (3.0 - t) / 0.2);
+        double v = 0.0;
+        for (int h = 1; h <= 6; ++h)
+            v += std::sin(2.0 * 3.14159265358979 * 330.0 * h * t) / (h * h);
+        s[i] += (float)(0.35 * env * v);
+    }
 
     float peak = 0.f;
     for (float v : s) peak = std::max(peak, std::fabs(v));
-    for (float& v : s) v *= 0.5f / peak;
+    for (float& v : s) v *= 0.4f / peak;
     return s;
 }
 
@@ -117,53 +126,57 @@ int main(int argc, char** argv)
     writeWav(dir + "/00_dry.wav", in, in);
 
     DelayParams base;
-    base.shape = dopplerit::kShapeApproach;
-    base.stereo = true;
-    base.time = 0.45f;
-    base.depth = 0.35f;
-    base.period = 2.f;
-    base.feedback = 0.6f;
-    base.tone = 0.55f;
+    base.heads = 1;
+    base.time = 0.25f;
+    base.speedKmh = 100.f;
+    base.distance = 5.f;
+    base.period = 2.5f;
+    base.stagger = 0.f;
+    base.feedback = 0.35f;
+    base.tone = 0.6f;
     base.mix = 0.5f;
+    base.stereo = true;
     base.loop = true;
 
     DelayParams p = base;
-    p.depth = 0.f;
-    render(dir, "01_reference_no_sweep.wav", in, p);
+    render(dir, "01_heads1.wav", in, p);
+    p.heads = 2;
+    render(dir, "02_heads2_sync.wav", in, p);
+    p.heads = 3;
+    render(dir, "03_heads3_sync.wav", in, p);
+    p.heads = 4;
+    render(dir, "04_heads4_sync.wav", in, p);
+    p.stagger = 0.25f;
+    render(dir, "05_heads4_staggered.wav", in, p);
 
     p = base;
-    render(dir, "02_approach_saw.wav", in, p);
-    p.shape = dopplerit::kShapeRecede;
-    render(dir, "03_recede_saw.wav", in, p);
-    p.shape = dopplerit::kShapePassBy;
-    p.period = 3.f;
-    render(dir, "04_passby_triangle.wav", in, p);
+    p.heads = 2;
+    p.stagger = 0.5f;
+    render(dir, "06_heads2_staggered.wav", in, p);
 
     p = base;
+    p.heads = 3;
     p.loop = false;
-    p.period = 1.2f;
-    p.depth = 0.6f;
-    p.feedback = 0.7f;
-    render(dir, "05_trig_oneshot.wav", in, p, { 0.6, 6.9 });
+    p.feedback = 0.45f;
+    render(dir, "07_trig_oneshot_heads3.wav", in, p, { 0.3, 6.4, 10.9 });
 
     p = base;
-    p.time = 0.18f;
-    p.depth = 0.7f;
+    p.distance = 1.f;
+    p.speedKmh = 150.f;
+    render(dir, "08_sharp_pass_1m_150kmh.wav", in, p);
+
+    p = base;
+    p.heads = 2;
+    p.distance = 40.f;
+    p.speedKmh = 80.f;
     p.period = 4.f;
-    p.feedback = 0.8f;
-    p.tone = 0.7f;
-    render(dir, "06_spiral.wav", in, p);
+    render(dir, "09_gentle_pass_40m.wav", in, p);
 
     p = base;
-    p.time = 0.6f;
-    p.depth = 0.12f;
-    p.period = 8.f;
+    p.time = 0.12f;
+    p.period = 1.2f;
+    p.speedKmh = 120.f;
     p.feedback = 0.5f;
-    p.shape = dopplerit::kShapePassBy;
-    render(dir, "07_slow_drift.wav", in, p);
-
-    p = base;
-    p.stereo = false;
-    render(dir, "08_approach_mono.wav", in, p);
+    render(dir, "10_fast_succession.wav", in, p);
     return 0;
 }
