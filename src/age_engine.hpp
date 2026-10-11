@@ -52,7 +52,7 @@ struct AgeParams {
     float time;     // s, delay between two repeats
     float speedKmh; // vehicle speed: amount of transposition
     float depth;    // 1..8, exaggeration of the transposition (x1 = realistic), max one octave
-    float distance; // m, closest distance: sharpness of the pitch drop
+    float shape;    // 0.05..1, part of the pass taken by the pitch glide (independent of speed)
     float period;   // s, duration of the pass (in repeat age)
     float feedback; // 0..1, gain from one repeat to the next
     float tone;     // 0..1, dark .. bright
@@ -64,8 +64,8 @@ static constexpr float kAgeMinTime     = 0.02f;
 static constexpr float kAgeMaxTime     = 1.5f;
 static constexpr float kAgeMinSpeedKmh = 5.f;
 static constexpr float kAgeMaxSpeedKmh = 300.f;
-static constexpr float kAgeMinDistance = 1.f;
-static constexpr float kAgeMaxDistance = 50.f;
+static constexpr float kAgeMinShape    = 0.05f;
+static constexpr float kAgeMaxShape    = 1.f;
 static constexpr float kAgeMinPeriod   = 0.1f;
 static constexpr float kAgeMaxPeriod   = 16.f;
 static constexpr float kAgeMinDepth    = 1.f;
@@ -141,7 +141,7 @@ public:
         writePos_ = 0;
         time_     = clampf(p.time, kAgeMinTime, kAgeMaxTime);
         speed_    = clampf(p.speedKmh, kAgeMinSpeedKmh, kAgeMaxSpeedKmh) / 3.6f;
-        distance_ = clampf(p.distance, kAgeMinDistance, kAgeMaxDistance);
+        shape_    = clampf(p.shape, kAgeMinShape, kAgeMaxShape);
         period_   = clampf(p.period, kAgeMinPeriod, kAgeMaxPeriod);
         depth_    = clampf(p.depth, kAgeMinDepth, kAgeMaxDepth);
         feedback_ = clampf(p.feedback, 0.f, 0.98f);
@@ -167,7 +167,7 @@ public:
     {
         const float tTime  = clampf(p.time, kAgeMinTime, kAgeMaxTime);
         const float tSpeed = clampf(p.speedKmh, kAgeMinSpeedKmh, kAgeMaxSpeedKmh) / 3.6f;
-        const float tDist  = clampf(p.distance, kAgeMinDistance, kAgeMaxDistance);
+        const float tShape = clampf(p.shape, kAgeMinShape, kAgeMaxShape);
         const float tPer   = clampf(p.period, kAgeMinPeriod, kAgeMaxPeriod);
         const float tDepth = clampf(p.depth, kAgeMinDepth, kAgeMaxDepth);
         const float tFb    = clampf(p.feedback, 0.f, 0.98f);
@@ -182,7 +182,7 @@ public:
             time_     = tTime; // Time moves the taps with a glide, like a tape delay
             // the curve is only recomputed while these move: snap when close
             glideTo(speed_, tSpeed);
-            glideTo(distance_, tDist);
+            glideTo(shape_, tShape);
             glideTo(period_, tPer);
             glideTo(depth_, tDepth);
             glideTo(tone_, tTone);
@@ -303,14 +303,16 @@ private:
         return s;
     }
 
-    // Doppler pass-by curve as a function of age (s = closest distance / half
-    // path). The plateaus are +/- A semitones, A = depth x 12 log2(1 + v/c)
-    // (depth 1: the realistic arrival pitch), limited to one octave.
+    // Doppler pass-by curve as a function of age: the hyperbola of a straight
+    // pass, u / sqrt(u^2 + s^2), where s (Shape) is the part of the pass taken
+    // by the glide, whatever the speed: 5 % is a quick swap, 100 % a slow glide
+    // over the whole pass. Normalized so that the ends of the pass reach the
+    // plateaus +/- A semitones, A = depth x 12 log2(1 + v/c) (depth 1: the
+    // realistic arrival pitch), limited to one octave.
     double curve(double age, double offset) const
     {
         const double v = (double)speed_, T = (double)period_;
-        const double half = mode_ == kAgePassBy ? 0.5 * v * T : v * T;
-        const double s = (double)distance_ / (half > 1e-6 ? half : 1e-6);
+        const double s = (double)shape_;
         double f = age / T + offset;              // 0..1 along the pass
         f = f < 0.0 ? 0.0 : (f > 1.0 ? 1.0 : f);
         const double u = mode_ == kAgePassBy ? 2.0 * f - 1.0
@@ -324,7 +326,7 @@ private:
     void updateTaps()
     {
         // nothing to do while no parameter of the curve moves
-        const double key[8] = { time_, speed_, distance_, period_, depth_, tone_, stereo_, (double)mode_ };
+        const double key[8] = { time_, speed_, shape_, period_, depth_, tone_, stereo_, (double)mode_ };
         if (std::memcmp(key, lastKey_, sizeof(key)) == 0)
             return;
         std::memcpy(lastKey_, key, sizeof(key));
@@ -476,7 +478,7 @@ private:
     uint32_t splices_ = 0;
 
     double lastKey_[8] = { -1.0 };
-    float time_ = 0.25f, speed_ = 27.8f, distance_ = 5.f, period_ = 2.f, depth_ = 1.f;
+    float time_ = 0.25f, speed_ = 27.8f, shape_ = 0.5f, period_ = 2.f, depth_ = 1.f;
     float feedback_ = 0.5f, tone_ = 0.6f, mix_ = 0.5f, stereo_ = 1.f, enabled_ = 1.f, smooth_ = 0.f;
 };
 

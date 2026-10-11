@@ -30,7 +30,7 @@ static AgeParams defaults()
     p.time = 0.25f;
     p.speedKmh = 100.f;
     p.depth = 1.f;
-    p.distance = 5.f;
+    p.shape = 0.5f;
     p.period = 2.f;
     p.feedback = 0.8f;
     p.tone = 1.f;
@@ -194,6 +194,7 @@ int main()
         AgeParams p = defaults();
         p.speedKmh = 300.f;
         p.depth = 8.f;
+        p.shape = 0.05f; // quick swap: the first repeat is on the plateau
         AgeDelayEngine e;
         Bursts b { { 0.3 }, 1000.0, 0.15 };
         Render r = render(p, 3.0, b, noHook, &e);
@@ -211,6 +212,34 @@ int main()
         ref.reset(q);
         const double x3 = 12.0 * std::log2(ref.pitchAtAge(0.0));
         CHECK(std::fabs(x3 - 3.0 * real) < 0.01, "depth x3 triples the transposition (%.2f -> %.2f semitones)", real, x3);
+    }
+
+    std::printf("[shape: the glide takes the same part of the pass at any speed]\n");
+    {
+        AgeDelayEngine a, b;
+        a.init(kFs, 1);
+        b.init(kFs, 1);
+        AgeParams q = defaults();
+        q.shape = 1.f;
+        q.speedKmh = 50.f;
+        a.reset(q);
+        q.speedKmh = 300.f;
+        q.depth = 8.f;
+        b.reset(q);
+        double worst = 0.0;
+        const double ea = std::log2(a.pitchAtAge(0.0)), eb = std::log2(b.pitchAtAge(0.0));
+        for (int i = 0; i <= 20; ++i) {
+            const double age = 0.1 * i, d = std::fabs(std::log2(a.pitchAtAge(age)) / ea - std::log2(b.pitchAtAge(age)) / eb);
+            worst = d > worst ? d : worst;
+        }
+        CHECK(worst < 1e-6, "same normalized curve at 50 km/h x1 and 300 km/h x8 (max diff %.1e)", worst);
+        q.shape = 0.05f;
+        b.reset(q);
+        const double sharp = 12.0 * std::log2(b.pitchAtAge(0.75));
+        q.shape = 1.f;
+        b.reset(q);
+        const double glide = 12.0 * std::log2(b.pitchAtAge(0.75));
+        CHECK(sharp > 11.0 && glide < 5.0, "a quarter before the middle: %.1f semitones at 5 %%, %.1f at 100 %%", sharp, glide);
     }
 
     std::printf("[long and dense pass]\n");
