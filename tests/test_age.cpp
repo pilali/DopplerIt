@@ -29,6 +29,7 @@ static AgeParams defaults()
     p.mode = dopplerit::kAgePassBy;
     p.time = 0.25f;
     p.speedKmh = 100.f;
+    p.depth = 1.f;
     p.distance = 5.f;
     p.period = 2.f;
     p.feedback = 0.8f;
@@ -188,6 +189,48 @@ int main()
         CHECK(std::fabs(f6 - fend) < 3.0, "repeat 6 (in the tail): %.1f Hz = final pitch %.1f Hz", f6, fend);
     }
 
+    std::printf("[depth: exaggeration up to one octave each way]\n");
+    {
+        AgeParams p = defaults();
+        p.speedKmh = 300.f;
+        p.depth = 8.f;
+        AgeDelayEngine e;
+        Bursts b { { 0.3 }, 1000.0, 0.15 };
+        Render r = render(p, 3.0, b, noHook, &e);
+        const double up = measureFreq(r.l, 0.58, 0.67), down = measureFreq(r.l, 2.33, 2.42);
+        CHECK(std::fabs(up - 1000.0 * e.pitchAtAge(0.25)) < 6.0 && up > 1980.0,
+              "highest repeat %.1f Hz (one octave up: 2000)", up);
+        CHECK(std::fabs(down - 1000.0 * e.pitchAtAge(2.0)) < 3.0 && down < 505.0,
+              "lowest repeat %.1f Hz (one octave down: 500)", down);
+        AgeDelayEngine ref;
+        ref.init(kFs, 1);
+        AgeParams q = defaults();
+        ref.reset(q);
+        const double real = 12.0 * std::log2(ref.pitchAtAge(0.0));
+        q.depth = 3.f;
+        ref.reset(q);
+        const double x3 = 12.0 * std::log2(ref.pitchAtAge(0.0));
+        CHECK(std::fabs(x3 - 3.0 * real) < 0.01, "depth x3 triples the transposition (%.2f -> %.2f semitones)", real, x3);
+    }
+
+    std::printf("[long and dense pass]\n");
+    {
+        AgeParams p = defaults();
+        p.time = 0.1f;
+        p.period = 2.4f;
+        AgeDelayEngine e;
+        Bursts b { { 0.3 }, 1000.0, 0.06 };
+        Render r = render(p, 3.5, b, noHook, &e);
+        const double f1 = measureFreq(r.l, 0.41, 0.45), f24 = measureFreq(r.l, 2.71, 2.75);
+        CHECK(e.taps() == 24 && f1 > 1060.0 && f24 < 940.0,
+              "%d repeats in a 2.4 s pass: %.1f Hz -> %.1f Hz", e.taps(), f1, f24);
+        p.time = 0.5f;
+        p.period = 16.f;
+        AgeDelayEngine e2;
+        render(p, 0.1, b, noHook, &e2);
+        CHECK(e2.taps() == 24 || e2.taps() == 32 / 2 + 8, "16 s pass with 0.5 s repeats: %d repeats", e2.taps());
+    }
+
     std::printf("[continuous signal, parameter changes: no discontinuity]\n");
     {
         AgeParams p = defaults();
@@ -197,12 +240,12 @@ int main()
             if (t > 2.0) q.mode = dopplerit::kAgeApproach;
             if (t > 3.0) q.time = 0.31f;
             if (t > 4.0) q.period = 0.8f;
-            if (t > 5.0) q.speedKmh = 250.f;
+            if (t > 5.0) { q.speedKmh = 250.f; q.depth = 2.f; }
             if (t > 6.0) q.stereo = false;
         };
         Render r = render(p, 7.0, Sine { 220.0, 0.5 }, hook);
-        // total amplitude <= 0.5 / (1 - 0.5) = 1, pitch <= 1.25x, splices/glides x2 margin
-        const float lim = (float)(2.0 * kPi * 220.0 * 1.25 / kFs * 1.0 * 2.0);
+        // total amplitude <= 0.5 / (1 - 0.5) = 1, pitch <= 1.6x (depth 2), splices/glides x2 margin
+        const float lim = (float)(2.0 * kPi * 220.0 * 1.6 / kFs * 1.0 * 2.0);
         const float ml = maxStep(r.l, 9600), mr = maxStep(r.r, 9600);
         CHECK(ml < lim && mr < lim, "max sample step L=%.4f R=%.4f (bound %.4f)", ml, mr, lim);
         bool fin = true;
@@ -240,12 +283,17 @@ int main()
         e.init(48000.0, 2);
         std::printf("         48 kHz: line %u samples x 2 channels (%.1f MiB)\n", e.bufferSize(),
                     2.0 * e.bufferSize() * 4.0 / 1048576.0);
-        AgeParams p = defaults();
-        p.time = 0.12f; p.period = 2.f; p.stereo = true; p.feedback = 0.6f; p.tone = 0.6f;
-        const auto t0 = std::chrono::steady_clock::now();
-        render(p, 60.0, Sine { 440.0, 0.5 }, noHook, &e);
-        const double el = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
-        std::printf("         60 s, 12 taps, stereo: %.3f s (%.2f %% of real time), %u splices\n", el, el / 60.0 * 100.0, e.splices());
+        for (int heavy = 0; heavy < 2; ++heavy) {
+            AgeParams p = defaults();
+            p.time = heavy ? 0.1f : 0.25f; p.period = heavy ? 2.4f : 2.f; p.stereo = true;
+            p.feedback = 0.6f; p.tone = 0.6f; p.depth = heavy ? 4.f : 1.f;
+            const auto t0 = std::chrono::steady_clock::now();
+            AgeDelayEngine e3;
+            render(p, 60.0, Sine { 440.0, 0.5 }, noHook, &e3);
+            const double el = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+            std::printf("         60 s, %d taps, depth x%.0f, stereo: %.3f s (%.2f %% of real time), %u splices\n",
+                        e3.taps(), p.depth, el, el / 60.0 * 100.0, e3.splices());
+        }
     }
 
     std::printf(failures ? "\n%d FAILURE(S)\n" : "\nALL TESTS PASSED\n", failures);

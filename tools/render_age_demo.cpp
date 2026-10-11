@@ -35,6 +35,7 @@ int main(int argc, char** argv)
     base.mode = dopplerit::kAgePassBy;
     base.time = 0.25f;
     base.speedKmh = 100.f;
+    base.depth = 1.f;
     base.distance = 5.f;
     base.period = 2.f;
     base.feedback = 0.7f;
@@ -71,5 +72,30 @@ int main(int argc, char** argv)
     p = base;
     p.stereo = false;
     render(dir, "age_07_passby_mono.wav", in, p);
+
+    // exaggerated settings
+    p = base;
+    p.speedKmh = 300.f;
+    p.depth = 8.f;
+    render(dir, "age_08_octave_passby.wav", in, p);
+    p.distance = 1.f;
+    render(dir, "age_09_octave_sharp.wav", in, p);
+
+    p = base;
+    p.time = 0.1f;
+    p.period = 2.4f;
+    p.depth = 4.f;
+    p.speedKmh = 150.f;
+    p.feedback = 0.7f;
+    render(dir, "age_10_dense_24_repeats.wav", in, p);
+
+    p = base;
+    p.time = 0.5f;
+    p.period = 12.f;
+    p.distance = 30.f;
+    p.speedKmh = 200.f;
+    p.depth = 5.f;
+    p.feedback = 0.9f;
+    render(dir, "age_11_long_12s_pass.wav", in, p);
     return 0;
 }

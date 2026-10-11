@@ -12,12 +12,15 @@
  * Repeat k is a tap of the delay line at age k * time. Its pitch is the
  * Doppler pass-by curve taken at that age:
  *
- *   Pass-by  : arrival (1 + v/c) -> closest point -> departure (1 - v/c)
- *   Approach : arrival (1 + v/c) -> back to the original pitch
- *   Recede   : original pitch    -> departure (1 - v/c)
+ *   Pass-by  : arrival (higher) -> closest point -> departure (lower)
+ *   Approach : arrival (higher)  -> back to the original pitch
+ *   Recede   : original pitch    -> departure (lower)
+ *
+ * Speed sets the realistic transposition (12 log2(1 + v/c) semitones each
+ * way); Depth multiplies it (up to one octave) to exaggerate the effect.
  *
  * The pass lasts "period" seconds, so it is spread over period / time
- * repeats (at most kMaxTaps, within kMaxSpan seconds). After the pass, a
+ * repeats (at most 24, within 16 seconds). After the pass, a
  * plain feedback delay keeps the repeats at the final pitch until they fade.
  *
  * Taps are parallel reads of one delay line, each transposed once from the
@@ -48,6 +51,7 @@ struct AgeParams {
     int   mode;     // AgeMode
     float time;     // s, delay between two repeats
     float speedKmh; // vehicle speed: amount of transposition
+    float depth;    // 1..8, exaggeration of the transposition (x1 = realistic), max one octave
     float distance; // m, closest distance: sharpness of the pitch drop
     float period;   // s, duration of the pass (in repeat age)
     float feedback; // 0..1, gain from one repeat to the next
@@ -63,13 +67,16 @@ static constexpr float kAgeMaxSpeedKmh = 300.f;
 static constexpr float kAgeMinDistance = 1.f;
 static constexpr float kAgeMaxDistance = 50.f;
 static constexpr float kAgeMinPeriod   = 0.1f;
-static constexpr float kAgeMaxPeriod   = 8.f;
+static constexpr float kAgeMaxPeriod   = 16.f;
+static constexpr float kAgeMinDepth    = 1.f;
+static constexpr float kAgeMaxDepth    = 8.f;
 
 class AgeDelayEngine {
 public:
-    static constexpr int    kMaxTaps      = 12;
+    static constexpr int    kMaxTaps      = 24;
     static constexpr int    kMaxChannels  = 2;
-    static constexpr double kMaxSpan      = 8.0;   // s, age of the last tap
+    static constexpr double kMaxSpan      = 16.0;  // s, age of the last tap
+    static constexpr double kMaxSemitones = 12.0;  // transposition limit (one octave)
     static constexpr double kSpeedOfSound = 343.0;
     static constexpr double kMaxWindow    = 0.030; // s, transposition window (+/- 15 ms timing)
     static constexpr double kMinRead      = 0.006; // s, shortest read delay
@@ -104,6 +111,9 @@ public:
             }
         }
         spliceLen_  = (int)(kSpliceFade * fs_);
+        if (spliceLen_ > kMaxFadeLen) spliceLen_ = kMaxFadeLen;
+        for (int i = 0; i <= spliceLen_; ++i)
+            fadeCurve_[i] = (float)(0.5 - 0.5 * std::cos(kPi * (double)i / (double)spliceLen_));
         searchHalf_ = (int)(kSearch * fs_);
         corrHalf_   = (int)(0.5 * kCorrLength * fs_);
         searchStep_ = fs_ > 60000.0 ? 2 : 1;
@@ -133,12 +143,14 @@ public:
         speed_    = clampf(p.speedKmh, kAgeMinSpeedKmh, kAgeMaxSpeedKmh) / 3.6f;
         distance_ = clampf(p.distance, kAgeMinDistance, kAgeMaxDistance);
         period_   = clampf(p.period, kAgeMinPeriod, kAgeMaxPeriod);
+        depth_    = clampf(p.depth, kAgeMinDepth, kAgeMaxDepth);
         feedback_ = clampf(p.feedback, 0.f, 0.98f);
         tone_     = clampf(p.tone, 0.f, 1.f);
         mix_      = clampf(p.mix, 0.f, 1.f);
         stereo_   = (channels_ > 1 && p.stereo) ? 1.f : 0.f;
         enabled_  = 1.f;
         mode_     = clampMode(p.mode);
+        lastKey_[0] = -1.0;
         updateTaps();
         for (int k = 0; k < kMaxTaps; ++k)
             active_[k] = k < taps_ ? 1.f : 0.f;
@@ -157,6 +169,7 @@ public:
         const float tSpeed = clampf(p.speedKmh, kAgeMinSpeedKmh, kAgeMaxSpeedKmh) / 3.6f;
         const float tDist  = clampf(p.distance, kAgeMinDistance, kAgeMaxDistance);
         const float tPer   = clampf(p.period, kAgeMinPeriod, kAgeMaxPeriod);
+        const float tDepth = clampf(p.depth, kAgeMinDepth, kAgeMaxDepth);
         const float tFb    = clampf(p.feedback, 0.f, 0.98f);
         const float tTone  = clampf(p.tone, 0.f, 1.f);
         const float tMix   = clampf(p.mix, 0.f, 1.f);
@@ -167,16 +180,16 @@ public:
         for (uint32_t i = 0; i < frames; ++i)
         {
             time_     = tTime; // Time moves the taps with a glide, like a tape delay
-            speed_   += smooth_ * (tSpeed - speed_);
-            distance_+= smooth_ * (tDist  - distance_);
-            period_  += smooth_ * (tPer   - period_);
+            // the curve is only recomputed while these move: snap when close
+            glideTo(speed_, tSpeed);
+            glideTo(distance_, tDist);
+            glideTo(period_, tPer);
+            glideTo(depth_, tDepth);
+            glideTo(tone_, tTone);
             feedback_+= smooth_ * (tFb    - feedback_);
-            tone_    += smooth_ * (tTone  - tone_);
             mix_     += smooth_ * (tMix   - mix_);
             enabled_ += smooth_ * (tEn    - enabled_);
-            stereo_  += smooth_ * (tSt    - stereo_);
-            if (tSt <= 0.f && stereo_ < 1e-4f)
-                stereo_ = 0.f;
+            glideTo(stereo_, tSt);
 
             if ((i & 15) == 0)
                 updateTaps();
@@ -196,6 +209,16 @@ public:
                 for (int k = 0; k < kMaxTaps; ++k)
                 {
                     const float a = active_[k];
+                    if (k >= taps_ && a < 1e-5f) {
+                        // idle tap: taps read the shared line, so it can simply
+                        // restart at its place when it becomes active again
+                        Tap& t = C.tap[k];
+                        t.e = delay_[k];
+                        t.fade = 0;
+                        t.lp = 0.f;
+                        g *= feedback_;
+                        continue;
+                    }
                     const float y = runTap(C, C.tap[k], k, ratio_[c][k]);
                     sum += a * g * y;
                     const float last = a - (k + 1 < kMaxTaps ? active_[k + 1] : 0.f);
@@ -263,6 +286,15 @@ private:
     };
 
     static float clampf(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+    void glideTo(float& v, float target) const
+    {
+        const float d = target - v;
+        if (std::fabs(d) <= 1e-6f * (std::fabs(target) + 1e-3f))
+            v = target;
+        else
+            v += smooth_ * d;
+    }
     static int clampMode(int m) { return m < kAgeApproach ? kAgeApproach : (m > kAgePassBy ? kAgePassBy : m); }
     static uint32_t pow2(double need)
     {
@@ -271,8 +303,9 @@ private:
         return s;
     }
 
-    // Doppler pass-by curve as a function of age, normalized so that the
-    // plateaus are exactly 1 +/- v/c (s = closest distance / half path).
+    // Doppler pass-by curve as a function of age (s = closest distance / half
+    // path). The plateaus are +/- A semitones, A = depth x 12 log2(1 + v/c)
+    // (depth 1: the realistic arrival pitch), limited to one octave.
     double curve(double age, double offset) const
     {
         const double v = (double)speed_, T = (double)period_;
@@ -282,12 +315,19 @@ private:
         f = f < 0.0 ? 0.0 : (f > 1.0 ? 1.0 : f);
         const double u = mode_ == kAgePassBy ? 2.0 * f - 1.0
                        : (mode_ == kAgeApproach ? f - 1.0 : f);
-        const double norm = std::sqrt(1.0 + s * s);
-        return 1.0 - (v / kSpeedOfSound) * u / std::sqrt(u * u + s * s) * norm;
+        const double w = u / std::sqrt(u * u + s * s) * std::sqrt(1.0 + s * s); // -1 .. 1
+        double A = (double)depth_ * 12.0 * std::log2(1.0 + v / kSpeedOfSound);
+        A = A > kMaxSemitones ? kMaxSemitones : A;
+        return std::exp2(-A * w / 12.0);
     }
 
     void updateTaps()
     {
+        // nothing to do while no parameter of the curve moves
+        const double key[8] = { time_, speed_, distance_, period_, depth_, tone_, stereo_, (double)mode_ };
+        if (std::memcmp(key, lastKey_, sizeof(key)) == 0)
+            return;
+        std::memcpy(lastKey_, key, sizeof(key));
         const double t = (double)time_;
         int n = (int)std::floor((double)period_ / t + 0.5);
         const int maxN = (int)std::floor(kMaxSpan / t);
@@ -335,7 +375,7 @@ private:
         if (t.fade > 0) {
             t.eOld += rate;
             const float yo = read(C.buf, t.eOld * fs_);
-            const float g = 0.5f - 0.5f * std::cos((float)kPi * (float)(spliceLen_ - t.fade) / (float)spliceLen_);
+            const float g = fadeCurve_[spliceLen_ - t.fade];
             y = yo + g * (y - yo);
             --t.fade;
         }
@@ -350,29 +390,43 @@ private:
         double shift = dir * (W - S);
         const double lo = D - 0.5 * W, hi = D + 0.5 * W;
         const uint32_t from = (uint32_t)(t.e * fs_ + 2.0);
-        double best = shift;
+        // coarse search (every 4th position, decimated window), then refine
+        int bestS = 0;
         float bestScore = -2.f;
-        for (int s = -searchHalf_; s <= searchHalf_; s += searchStep_) {
-            const double cand = t.e + shift + (double)s / fs_;
-            if (cand < lo || cand > hi || cand < kMinRead)
-                continue;
-            const float score = correlation(C.buf, from, (uint32_t)(cand * fs_ + 2.0));
-            if (score > bestScore) {
-                bestScore = score;
-                best = shift + (double)s / fs_;
+        for (int pass = 0; pass < 2; ++pass) {
+            const int step   = pass == 0 ? 4 * searchStep_ : 1;
+            const int from_s = pass == 0 ? -searchHalf_ : bestS - 3 * searchStep_;
+            const int to_s   = pass == 0 ?  searchHalf_ : bestS + 3 * searchStep_;
+            const int stride = pass == 0 ? 4 : 2;
+            if (pass == 1) bestScore = -2.f;
+            const int coarseBest = bestS;
+            for (int sIdx = from_s; sIdx <= to_s; sIdx += step) {
+                if (sIdx < -searchHalf_ || sIdx > searchHalf_)
+                    continue;
+                const double cand = t.e + shift + (double)sIdx / fs_;
+                if (cand < lo || cand > hi || cand < kMinRead)
+                    continue;
+                const float score = correlation(C.buf, from, (uint32_t)(cand * fs_ + 2.0), stride);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestS = sIdx;
+                }
             }
+            if (pass == 1 && bestScore <= -2.f)
+                bestS = coarseBest;
         }
+        const double best = shift + (double)bestS / fs_;
         t.eOld = t.e;
         t.e += best;
         t.fade = spliceLen_;
         ++splices_;
     }
 
-    float correlation(const float* buf, uint32_t da, uint32_t db) const
+    float correlation(const float* buf, uint32_t da, uint32_t db, int stride) const
     {
         float ab = 0.f, aa = 0.f, bb = 0.f;
         const uint32_t pa = writePos_ - da, pb = writePos_ - db;
-        for (int k = -corrHalf_; k <= corrHalf_; k += 2) {
+        for (int k = -corrHalf_; k <= corrHalf_; k += stride) {
             const float a = buf[(pa + (uint32_t)k) & mask_];
             const float b = buf[(pb + (uint32_t)k) & mask_];
             ab += a * b;
@@ -416,10 +470,13 @@ private:
     double ratio_[kMaxChannels][kMaxTaps] = {};
     float  tapCoef_[kMaxTaps] = {};
 
+    static constexpr int kMaxFadeLen = 4096;
+    float fadeCurve_[kMaxFadeLen + 1] = {};
     int spliceLen_ = 720, searchHalf_ = 288, corrHalf_ = 192, searchStep_ = 1;
     uint32_t splices_ = 0;
 
-    float time_ = 0.25f, speed_ = 27.8f, distance_ = 5.f, period_ = 2.f;
+    double lastKey_[8] = { -1.0 };
+    float time_ = 0.25f, speed_ = 27.8f, distance_ = 5.f, period_ = 2.f, depth_ = 1.f;
     float feedback_ = 0.5f, tone_ = 0.6f, mix_ = 0.5f, stereo_ = 1.f, enabled_ = 1.f, smooth_ = 0.f;
 };
 
