@@ -76,18 +76,24 @@ install-user:
 uninstall:
 	rm -rf $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 
-test: tests/test_delay
+test: tests/test_delay tests/test_age
 	./tests/test_delay
+	./tests/test_age
+
+tests/test_age: tests/test_age.cpp src/age_engine.hpp
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -fno-fast-math -Isrc tests/test_age.cpp -o $@ -lm
 
 tests/test_delay: tests/test_delay.cpp src/delay_engine.hpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -fno-fast-math -Isrc tests/test_delay.cpp -o $@ -lm
 
-demo: tools/render_demo.cpp src/delay_engine.hpp
+demo: tools/render_demo.cpp tools/render_age_demo.cpp tools/demo_signal.hpp src/delay_engine.hpp src/age_engine.hpp
 	@mkdir -p $(BUILDDIR)/demo
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -Isrc tools/render_demo.cpp -o $(BUILDDIR)/render_demo -lm
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -Isrc tools/render_age_demo.cpp -o $(BUILDDIR)/render_age_demo -lm
 	$(BUILDDIR)/render_demo $(BUILDDIR)/demo
+	$(BUILDDIR)/render_age_demo $(BUILDDIR)/demo
 
 clean:
-	rm -rf $(BUILDDIR) tests/test_delay
+	rm -rf $(BUILDDIR) tests/test_delay tests/test_age
 
 .PHONY: all bundle install install-user uninstall test demo clean
