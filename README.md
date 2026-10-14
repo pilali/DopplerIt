@@ -6,59 +6,74 @@ Plug-in audio de **delay Doppler** :
 - **LV2** optimisé pour les **MOD Dwarf / Duo / Duo X** et le **Raspberry Pi 5**, avec un **modgui** complet pour mod-ui ;
 - **VST3** (Windows, Linux, macOS) et **AU** (macOS Intel + Apple Silicon) via **JUCE**, avec une interface identique au modgui.
 
-Les deux versions partagent exactement le même moteur DSP (`src/delay_engine.hpp`) et les mêmes paramètres.
+Les deux versions partagent exactement le même moteur DSP (`src/age_engine.hpp`), les mêmes paramètres et les mêmes **20 presets** (`src/presets.hpp`).
 
 ## Principe
 
-C'est un écho à **1 à 4 têtes en série**, comme un delay à bande multi-têtes, où chaque tête
-applique un effet Doppler de **passage de véhicule** à ce qu'elle relit, comme la sirène
-d'un véhicule d'urgence.
+C'est un delay dont chaque répétition vit son propre **passage de véhicule**, comme la
+sirène d'un véhicule d'urgence. La hauteur d'une répétition ne dépend que de son **âge** :
+une note jouée à n'importe quel moment reçoit exactement le même traitement, comme dans un
+delay. Il n'y a ni LFO ni cycle.
 
-Faire varier la durée d'un delay revient à déplacer une source sonore :
-- quand la durée raccourcit, le son monte (arrivée du véhicule) ;
-- quand elle s'allonge, le son descend (éloignement).
+- **Pass-by** : les premières répétitions arrivent plus aiguës, puis la hauteur passe par
+  l'original au point de passage, et les suivantes s'éloignent plus graves.
+- **Approach** : seulement l'arrivée, de l'aigu vers la hauteur d'origine.
+- **Recede** : seulement l'éloignement, de la hauteur d'origine vers le grave.
 
-Chaque cycle du LFO correspond à **un véhicule qui passe**. La durée suit la courbe de
-distance réelle d'un passage en ligne droite :
-- d'abord le **plateau aigu** de l'arrivée ;
-- puis la **chute** au point de passage ;
-- ensuite le **plateau grave** de l'éloignement ;
-- enfin, au cycle suivant, le **retour instantané** à l'arrivée, le véhicule suivant.
+Le passage dure *Period* secondes (en âge des répétitions), réparti sur *Period / Time*
+répétitions, au plus 24. Ensuite, les répétitions gardent la hauteur finale jusqu'à leur
+extinction.
 
-En fin de cycle, la durée retrouve exactement sa valeur de départ ; seul son sens de
-variation s'inverse. Il n'y a donc ni clic ni glissement, seulement une bascule nette
-de hauteur.
-
-Les têtes sont **en série** : chaque tête retarde de *Time* le signal de la précédente et lui
-réapplique l'effet. La transposition se **cumule** d'une tête à l'autre. On entend toutes les
-têtes, et la dernière est renvoyée vers la première (feedback). Aucun découpage du son :
-les têtes de lecture se déplacent seulement, comme sur un delay analogique.
+Chaque répétition est une lecture de la même ligne à retard, transposée **une seule fois**
+depuis l'original : les artefacts ne se cumulent pas d'une répétition à l'autre. Une
+répétition transposée tombe à ± 15 ms de son temps nominal.
 
 - 1 entrée, 2 sorties, avec un mode **Mono** ou **Stereo** (léger décalage de l'effet entre gauche et droite).
-- Charge CPU : environ 1,2 % d'un cœur x86 avec 4 têtes en stéréo ; 4 Mio de mémoire à 48 kHz.
+- Mémoire : 8 Mio à 48 kHz.
+- Charge CPU, sur un cœur x86 : de 1 à 7 % selon le nombre de répétitions transposées
+  (24 répétitions à l'octave en stéréo : environ 6 %).
 
 ## Contrôles
 
 | Contrôle | Plage | Rôle |
 |---|---|---|
-| Mode | Approach / Pass-by / Recede | Pass-by : arrivée puis éloignement, et retour instantané à l'arrivée du véhicule suivant. Approach : seulement l'arrivée (le son aigu se stabilise au point de passage). Recede : seulement l'éloignement (le son part du point de passage et descend). En Approach et Recede, chaque nouveau véhicule repart avec un fondu de 20 ms |
-| Heads | 1 à 4 | Nombre de têtes en série |
-| Time | 20 ms – 1,5 s | Écart entre deux têtes, identique pour toutes. Synchronisable au tempo |
-| Speed | 5 – 300 km/h | Vitesse du véhicule, donc ampleur de la transposition (environ ±1,4 demi-ton par tête à 100 km/h) |
-| Distance | 1 – 50 m | Distance de passage : courte, la chute de hauteur au milieu est brutale ; longue, elle est progressive |
-| Period | 0,1 – 16 s | Temps entre deux véhicules (un cycle de LFO). Synchronisable au tempo |
-| Stagger | 0 – 100 % | 0 % : têtes synchrones, l'effet se cumule. Au-delà : chaque tête passe plus tard que la précédente, comme plusieurs véhicules qui se suivent ; 100/N % les répartit régulièrement (25 % pour 4 têtes) |
-| Feedback | 0 – 100 % | Réinjection de la dernière tête vers la première, avec une saturation douce qui garde la boucle stable |
-| Tone | 0 – 100 % | Passe-bas dans chaque tête : chaque répétition s'assombrit |
+| Mode | Approach / Pass-by / Recede | Arrivée puis éloignement, arrivée seule ou éloignement seul |
+| Time | 20 ms – 1,5 s | Écart entre deux répétitions. Court : les répétitions sont denses et les paliers de hauteur se fondent en glissement. Synchronisable au tempo |
+| Speed | 5 – 300 km/h | Vitesse du véhicule, donc ampleur de la transposition (réaliste : environ ± 1,4 demi-ton à 100 km/h) |
+| Depth | ×1 – ×8 | Exagération de la transposition : ×1 est réaliste, jusqu'à une octave de chaque côté au maximum |
+| Shape | 5 – 100 % | Part du passage occupée par le glissement de hauteur, quelle que soit la vitesse : 5 %, bascule brève au point de passage ; 100 %, glissement sur tout le passage |
+| Period | 0,1 – 16 s | Durée du passage, en âge des répétitions. Synchronisable au tempo |
+| Feedback | 0 – 100 % | Niveau de chaque répétition par rapport à la précédente |
+| Tone | 0 – 100 % | Passe-bas sur les répétitions : chacune s'assombrit, comme sur un delay analogique |
 | Dry/Wet | 0 – 100 % | Balance son direct / effet (les deux à plein niveau à 50 %) |
 | Output | Mono / Stereo | Mono : le même signal sur les deux sorties. Stereo : effet légèrement décalé entre gauche et droite |
-| Loop | on / off | On : passages en continu. Off : un passage par déclenchement |
-| Pass | bouton | Lance un passage (à assigner à un footswitch) |
 | Bypass | footswitch | Désignation `lv2:enabled`, avec un fondu sans clic |
 
-**La transposition n'existe que pendant le mouvement**, comme sur un vrai delay analogique
-dont on tourne le potentiomètre de durée. *Speed*, *Distance* et *Period* dessinent le
-passage ; *Time* fixe l'écart entre les têtes.
+*Speed* et *Depth* règlent l'ampleur ; *Shape* et *Period* dessinent la courbe ; *Time* fixe
+la densité des répétitions.
+
+## Presets
+
+20 presets d'usine, identiques dans les deux versions :
+
+| Section | Presets |
+|---|---|
+| Default | Default |
+| Realistic | Highway Siren, Ambulance, Approaching Train, Fading Away |
+| Subtle | Detuned Slapback, Slow Drift, Pitch-Drop Slap |
+| Intervals | Fifth Up, Fifth Down ; Octave Swap ; Octave Fly-By ; Long Glide ; Rising Ghosts ; Dive Bomb |
+| In time (120 BPM) | Quarter-Note Pass, Dotted Eighth Siren, Triplet Cascade |
+| Textures | Rush Hour, Comet Tail, Deep Space |
+
+- **mod-ui** : menu des presets du plug-in (fichiers `presets.ttl` et `manifest.ttl` du bundle).
+- **JUCE** : programmes d'usine de l'hôte, et barre de presets au-dessus de la pédale
+  (flèches précédent / suivant, menu par section en cliquant sur le nom).
+- Les presets ne touchent ni à **Output** (Mono / Stereo, qui dépend du câblage) ni au bypass.
+- Les presets « In time » sont réglés pour 120 BPM. Pour suivre le tempo, synchronisez
+  *Time* et *Period* dans mod-ui (voir ci-dessous).
+
+Les presets sont définis une seule fois dans `src/presets.hpp`. `make presets` régénère les
+fichiers LV2 ; `make test` échoue s'ils ne correspondent plus au tableau.
 
 ### Synchronisation au tempo (mod-ui)
 
@@ -70,9 +85,6 @@ Les ports **Time** et **Period** déclarent `mod:tempoRelatedDynamicScalePoints`
 
 Avec **Assign to: None**, la valeur suit simplement le tempo global, y compris en tap tempo
 depuis le Dwarf.
-
-Astuce : avec **Loop = off** et **Pass** assigné à un footswitch du Dwarf, chaque appui fait
-passer un véhicule.
 
 ## Compilation
 
@@ -131,8 +143,9 @@ Ajoutez `-DDOPPLERIT_STANDALONE=ON` pour obtenir aussi une application autonome.
 - **Entrées et sorties** : entrée mono ou stéréo (sommée en mono) ; sortie mono ou stéréo. Avec une piste de sortie mono, l'effet est automatiquement l'effet mono simple.
 - **Bypass** : le footswitch est le paramètre de bypass natif de l'hôte, avec un fondu sans clic.
 - **Interface** :
-  - même disposition 320 × 476, mêmes couleurs et mêmes images que le modgui (filmstrip du potard, footswitch, en-tête gyrophare) ;
+  - même disposition 320 × 576, mêmes couleurs et mêmes images que le modgui (filmstrip du potard, footswitch, en-tête gyrophare) ;
   - même police, Cooper Hewitt : c'est celle que mod-ui impose à tous les modgui ;
+  - au-dessus de la pédale, une barre de presets tient le rôle du menu des presets de mod-ui ;
   - la fenêtre est redimensionnable de 75 % à 300 %.
 - **CI GitHub Actions** : chaque push compile Linux, Windows et macOS universel, valide le VST3 avec pluginval (sévérité 10), valide l'AU avec `auval` en natif et sous Rosetta, puis publie les binaires en artefacts. Un tag `v*` crée une release.
 - **Signature macOS** : les binaires de la CI sont signés ad hoc. Pour les distribuer sans avertissement de Gatekeeper, il faut une signature Developer ID et une notarisation Apple. En attendant : `xattr -dr com.apple.quarantine DopplerIt.vst3`.
@@ -142,32 +155,36 @@ Ajoutez `-DDOPPLERIT_STANDALONE=ON` pour obtenir aussi une application autonome.
 ### Tests et démos
 
 ```sh
-make test   # tests hors ligne du moteur
-make demo   # fichiers WAV de démonstration dans build/demo
+make test           # tests hors ligne du moteur et des presets
+make demo           # fichiers WAV de démonstration dans build/demo
+make presets-demo   # chaque preset rendu sur le signal de test, dans build/presets
 ```
 
 Les tests vérifient :
-- les **plateaux de hauteur** (1 ± v/c) ;
-- le **retour instantané** de l'éloignement à l'arrivée, avec une sortie continue ;
-- l'effet de **Distance** sur la chute de hauteur ;
-- le **cumul de la transposition** d'une tête à l'autre ;
-- la **stabilité** avec 4 têtes et un feedback à 100 % ;
-- le **mode déclenché** ;
-- l'**absence de discontinuité** lors des changements de paramètres (nombre de têtes, Time, Stagger, Mono/Stereo) ;
-- le **mono**, le **bypass**, la **mémoire** et la **charge CPU**.
+- la **hauteur de chaque répétition** selon la courbe, dans les trois modes, et la queue à la hauteur finale ;
+- l'**invariance dans le temps** : la même note reçoit le même traitement quel que soit le moment où elle est jouée ;
+- le **placement** des répétitions (± 15 ms) ;
+- **Depth** (jusqu'à une octave de chaque côté) et **Shape** (même courbe quelle que soit la vitesse) ;
+- l'**absence de discontinuité** lors des changements de paramètres ;
+- la **stabilité**, le **mono**, le **bypass**, la **mémoire** et la **charge CPU** ;
+- les **presets** : plages, noms uniques, sortie finie, et fichiers LV2 à jour.
 
 ## Structure
 
 ```
-src/delay_engine.hpp        moteur DSP (sans dépendance)
+src/age_engine.hpp          moteur DSP (sans dépendance)
+src/presets.hpp             presets d'usine (LV2 et JUCE)
 src/dopplerit.cpp           enveloppe LV2
 juce/                       version JUCE (VST3 / AU) : CMake, processeur, éditeur
 .github/workflows/build.yml CI : LV2 + tests, VST3 Linux/Windows/macOS, AU macOS, pluginval, auval
-dopplerit.lv2/              manifest, description des ports, modgui
-tests/test_delay.cpp        tests hors ligne du moteur
-tools/render_demo.cpp       rendu des fichiers WAV de démonstration (make demo)
+dopplerit.lv2/              manifest, description des ports, presets, modgui
+tests/test_age.cpp          tests hors ligne du moteur et des presets
+tools/gen_presets.cpp       génère presets.ttl et manifest.ttl (make presets)
+tools/render_age_demo.cpp   rendu des fichiers WAV de démonstration (make demo)
+tools/render_presets.cpp    rendu de chaque preset (make presets-demo)
 tools/make_gui_images.py    génère le potard (filmstrip) et le footswitch
 tools/make_screenshots.mjs  capture screenshot et thumbnail depuis un mod-ui en mode dev
+tools/render_modgui.mjs     même capture sans mod-ui (gabarit rempli et rendu dans Chromium)
 mod-plugin-builder/         recette buildroot pour les appareils MOD
 ```
 
@@ -177,7 +194,7 @@ Le template suit les conventions de mod-ui :
 - jacks d'entrée et de sortie générés par mod-ui (`mod-role="input-audio-port"` /
   `"output-audio-port"`, avec les classes `mod-pedal-input-image` et `mod-pedal-output-image`) ;
 - CSS espacé par `{{{cns}}}` et ressources chargées via `{{{ns}}}` ;
-- widgets `film`, `custom-select` et `switch` ;
+- widgets `film` et `custom-select` ;
 - footswitch `mod-role="bypass"`.
 
 Le visuel s'inspire du gyrophare, l'exemple d'effet Doppler le plus familier. La LED

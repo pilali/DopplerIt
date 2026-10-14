@@ -17,10 +17,10 @@
     ] ;
     mod:brand "pilali" ;
     mod:label "DopplerIt" ;
-    lv2:minorVersion 2 ;
+    lv2:minorVersion 4 ;
     lv2:microVersion 0 ;
     lv2:optionalFeature lv2:hardRTCapable ;
-    rdfs:comment "Doppler delay: an echo with 1 to 4 heads in series, like a multi-head tape delay, where every head applies a Doppler pass-by to what it reads, like the siren of a passing emergency vehicle. Each LFO cycle is one vehicle: in Pass-by mode the repeats go from the arrival pitch (higher) to the departure pitch (lower), then jump straight back to the arrival of the next vehicle; Approach and Recede keep only one half of the pass-by. The transposition compounds from head to head. Mono input; Output Mono gives the same signal on both outputs, Output Stereo slightly offsets the effect between left and right." ;
+    rdfs:comment "Doppler delay: every sound that enters lives its own pass-by while it echoes away. The pitch of a repeat depends only on its age, like a delay whose repeats come from a passing siren: the first repeats arrive higher, the later ones leave lower (Pass-by), or only one half of it (Approach, Recede). Speed and Depth set the transposition (up to one octave each way), Shape the part of the pass taken by the glide, Period its duration. Mono input; Output Mono gives the same signal on both outputs, Output Stereo slightly offsets the effect between left and right." ;
     lv2:port
     [
         a lv2:InputPort , lv2:AudioPort ;
@@ -43,17 +43,16 @@
     [
         a lv2:InputPort , lv2:ControlPort ;
         lv2:index 3 ;
-        lv2:symbol "heads" ;
-        lv2:name "Heads" ;
+        lv2:symbol "mode" ;
+        lv2:name "Mode" ;
         lv2:default 2 ;
-        lv2:minimum 1 ;
-        lv2:maximum 4 ;
+        lv2:minimum 0 ;
+        lv2:maximum 2 ;
         lv2:portProperty lv2:integer , lv2:enumeration ;
-        lv2:scalePoint [ rdfs:label "1 head" ; rdf:value 1 ] ,
-                       [ rdfs:label "2 heads" ; rdf:value 2 ] ,
-                       [ rdfs:label "3 heads" ; rdf:value 3 ] ,
-                       [ rdfs:label "4 heads" ; rdf:value 4 ] ;
-        rdfs:comment "Number of heads in series. Each head delays the previous one by Time and applies the Doppler pass-by again: the transposition compounds from head to head." ;
+        lv2:scalePoint [ rdfs:label "Approach" ; rdf:value 0 ] ,
+                       [ rdfs:label "Recede" ; rdf:value 1 ] ,
+                       [ rdfs:label "Pass-by" ; rdf:value 2 ] ;
+        rdfs:comment "Pass-by: the repeats go from the arrival pitch (higher) to the departure pitch (lower). Approach: arrival only, back to the original pitch. Recede: departure only, from the original pitch." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
@@ -65,7 +64,7 @@
         lv2:maximum 1.5 ;
         lv2:portProperty pprops:logarithmic , mod:tempoRelatedDynamicScalePoints ;
         units:unit units:s ;
-        rdfs:comment "Delay between two heads (same for every head). Can be synced to the tempo in mod-ui." ;
+        rdfs:comment "Delay between two repeats. Short = dense repeats, the pitch steps blend into a glide. Can be synced to the tempo in mod-ui." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
@@ -82,39 +81,32 @@
             units:symbol "km/h" ;
             units:render "%.0f km/h"
         ] ;
-        rdfs:comment "Speed of the vehicle: amount of transposition (about +/- 1.4 semitone per head at 100 km/h)." ;
+        rdfs:comment "Speed of the vehicle: amount of transposition (realistic: about +/- 1.4 semitone at 100 km/h)." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
         lv2:index 6 ;
-        lv2:symbol "distance" ;
-        lv2:name "Distance" ;
-        lv2:default 5.0 ;
+        lv2:symbol "depth" ;
+        lv2:name "Depth" ;
+        lv2:default 2.0 ;
         lv2:minimum 1.0 ;
-        lv2:maximum 50.0 ;
+        lv2:maximum 8.0 ;
         lv2:portProperty pprops:logarithmic ;
-        units:unit units:m ;
-        rdfs:comment "Closest distance of the pass-by: short = abrupt pitch drop, long = smooth glide." ;
+        units:unit [
+            a units:Unit ;
+            rdfs:label "times" ;
+            units:symbol "x" ;
+            units:render "x%.1f"
+        ] ;
+        rdfs:comment "Exaggeration of the transposition: x1 = realistic, up to one octave each way." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
         lv2:index 7 ;
-        lv2:symbol "period" ;
-        lv2:name "Period" ;
-        lv2:default 2.5 ;
-        lv2:minimum 0.1 ;
-        lv2:maximum 16.0 ;
-        lv2:portProperty pprops:logarithmic , mod:tempoRelatedDynamicScalePoints ;
-        units:unit units:s ;
-        rdfs:comment "Time between two vehicles (one LFO cycle). Can be synced to the tempo in mod-ui." ;
-    ] ,
-    [
-        a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 8 ;
-        lv2:symbol "stagger" ;
-        lv2:name "Stagger" ;
-        lv2:default 0.0 ;
-        lv2:minimum 0.0 ;
+        lv2:symbol "shape" ;
+        lv2:name "Shape" ;
+        lv2:default 50.0 ;
+        lv2:minimum 5.0 ;
         lv2:maximum 100.0 ;
         units:unit [
             a units:Unit ;
@@ -122,14 +114,26 @@
             units:symbol "%" ;
             units:render "%.0f%%"
         ] ;
-        rdfs:comment "0 %: all heads pass in sync (the effect compounds). Higher: each head passes later than the previous one (several vehicles following each other); 100 / number of heads spreads them evenly." ;
+        rdfs:comment "Part of the pass taken by the pitch glide, whatever the speed: 5 % = quick swap at the closest point, 100 % = slow glide over the whole pass." ;
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 8 ;
+        lv2:symbol "period" ;
+        lv2:name "Period" ;
+        lv2:default 2.0 ;
+        lv2:minimum 0.1 ;
+        lv2:maximum 16.0 ;
+        lv2:portProperty pprops:logarithmic , mod:tempoRelatedDynamicScalePoints ;
+        units:unit units:s ;
+        rdfs:comment "Duration of the pass, in age of the repeats (at most 24 repeats). After it, the repeats keep the final pitch until they fade. Can be synced to the tempo in mod-ui." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
         lv2:index 9 ;
         lv2:symbol "feedback" ;
         lv2:name "Feedback" ;
-        lv2:default 35.0 ;
+        lv2:default 70.0 ;
         lv2:minimum 0.0 ;
         lv2:maximum 100.0 ;
         units:unit [
@@ -138,7 +142,7 @@
             units:symbol "%" ;
             units:render "%.0f%%"
         ] ;
-        rdfs:comment "Amount of the last head sent back to the first one." ;
+        rdfs:comment "Level of each repeat relative to the previous one." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
@@ -154,7 +158,7 @@
             units:symbol "%" ;
             units:render "%.0f%%"
         ] ;
-        rdfs:comment "Low-pass in every head: each repeat gets darker, like an analog delay." ;
+        rdfs:comment "Low-pass on the repeats: each repeat gets darker, like an analog delay." ;
     ] ,
     [
         a lv2:InputPort , lv2:ControlPort ;
@@ -188,28 +192,6 @@
     [
         a lv2:InputPort , lv2:ControlPort ;
         lv2:index 13 ;
-        lv2:symbol "loop" ;
-        lv2:name "Loop" ;
-        lv2:default 1 ;
-        lv2:minimum 0 ;
-        lv2:maximum 1 ;
-        lv2:portProperty lv2:integer , lv2:toggled ;
-        rdfs:comment "On: vehicles pass continuously. Off: one pass-by per trigger." ;
-    ] ,
-    [
-        a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 14 ;
-        lv2:symbol "trigger" ;
-        lv2:name "Trigger" ;
-        lv2:default 0 ;
-        lv2:minimum 0 ;
-        lv2:maximum 1 ;
-        lv2:portProperty lv2:integer , lv2:toggled , pprops:trigger ;
-        rdfs:comment "Start a pass-by from the beginning (assign it to a footswitch)." ;
-    ] ,
-    [
-        a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 15 ;
         lv2:symbol "enabled" ;
         lv2:name "Enabled" ;
         lv2:default 1 ;
@@ -217,18 +199,4 @@
         lv2:maximum 1 ;
         lv2:designation lv2:enabled ;
         lv2:portProperty lv2:integer , lv2:toggled ;
-    ] ,
-    [
-        a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 16 ;
-        lv2:symbol "mode" ;
-        lv2:name "Mode" ;
-        lv2:default 2 ;
-        lv2:minimum 0 ;
-        lv2:maximum 2 ;
-        lv2:portProperty lv2:integer , lv2:enumeration ;
-        lv2:scalePoint [ rdfs:label "Approach" ; rdf:value 0 ] ,
-                       [ rdfs:label "Recede" ; rdf:value 1 ] ,
-                       [ rdfs:label "Pass-by" ; rdf:value 2 ] ;
-        rdfs:comment "Pass-by: arrival (pitch up) then departure (pitch down), then straight back to the arrival of the next vehicle. Approach: arrival only, settling at the closest point. Recede: departure only, from the closest point." ;
     ] .

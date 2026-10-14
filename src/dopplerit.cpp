@@ -21,80 +21,70 @@
 #include <cstdlib>
 #include <new>
 
-#include "delay_engine.hpp"
+#include "age_engine.hpp"
 
 #define DOPPLERIT_URI "https://github.com/pilali/dopplerit"
 
 namespace {
 
 enum Control {
-    kCtlHeads = 0,
+    kCtlMode = 0,
     kCtlTime,
     kCtlSpeed,
-    kCtlDistance,
+    kCtlDepth,
+    kCtlShape,
     kCtlPeriod,
-    kCtlStagger,
     kCtlFeedback,
     kCtlTone,
     kCtlMix,
     kCtlOutput,
-    kCtlLoop,
-    kCtlTrigger,
     kCtlEnabled,
-    kCtlMode,
     kCtlCount
 };
 
-// Port layout, see dopplerit.ttl: 0 in, 1 out_l, 2 out_r, then the controls (mode last)
+// Port layout, see dopplerit.ttl: 0 in, 1 out_l, 2 out_r, then the controls
 enum { kPortIn = 0, kPortOutL = 1, kPortOutR = 2, kPortFirstControl = 3 };
 
 // Defaults, used until the host connects a control port
 const float kDefaults[kCtlCount] = {
-    2.f,    // heads
+    2.f,    // mode (0 approach, 1 recede, 2 pass-by)
     0.25f,  // time (s)
     100.f,  // speed (km/h)
-    5.f,    // distance (m)
-    2.5f,   // period (s)
-    0.f,    // stagger (%)
-    35.f,   // feedback (%)
+    2.f,    // depth (x)
+    50.f,   // shape (%)
+    2.f,    // period (s)
+    70.f,   // feedback (%)
     60.f,   // tone (%)
     50.f,   // mix (%)
     1.f,    // output (0 = mono, 1 = stereo)
-    1.f,    // loop
-    0.f,    // trigger
     1.f,    // enabled
-    2.f,    // mode (0 approach, 1 recede, 2 pass-by)
 };
 
 struct DopplerIt {
-    dopplerit::DelayEngine engine;
+    dopplerit::AgeDelayEngine engine;
 
     const float* in     = nullptr;
     float*       out[2] = { nullptr, nullptr };
     const float* ctl[kCtlCount] = {};
-
-    bool lastTrigger = false;
 
     float value(int c) const
     {
         return ctl[c] != nullptr ? *ctl[c] : kDefaults[c];
     }
 
-    dopplerit::DelayParams params() const
+    dopplerit::AgeParams params() const
     {
-        dopplerit::DelayParams p;
+        dopplerit::AgeParams p;
         p.mode     = (int)(value(kCtlMode) + 0.5f);
-        p.heads    = (int)(value(kCtlHeads) + 0.5f);
         p.time     = value(kCtlTime);
         p.speedKmh = value(kCtlSpeed);
-        p.distance = value(kCtlDistance);
+        p.depth    = value(kCtlDepth);
+        p.shape    = value(kCtlShape) * 0.01f;
         p.period   = value(kCtlPeriod);
-        p.stagger  = value(kCtlStagger) * 0.01f;
         p.feedback = value(kCtlFeedback) * 0.01f;
         p.tone     = value(kCtlTone) * 0.01f;
         p.mix      = value(kCtlMix) * 0.01f;
         p.stereo   = value(kCtlOutput) > 0.5f;
-        p.loop     = value(kCtlLoop) > 0.5f;
         return p;
     }
 };
@@ -132,7 +122,6 @@ void activate(LV2_Handle instance)
 {
     DopplerIt* self = (DopplerIt*)instance;
     self->engine.reset(self->params());
-    self->lastTrigger = self->value(kCtlTrigger) > 0.5f;
 }
 
 void run(LV2_Handle instance, uint32_t frames)
@@ -141,11 +130,6 @@ void run(LV2_Handle instance, uint32_t frames)
 
     if (self->in == nullptr || self->out[0] == nullptr || self->out[1] == nullptr)
         return;
-
-    const bool trig = self->value(kCtlTrigger) > 0.5f;
-    if (trig && !self->lastTrigger)
-        self->engine.trigger();
-    self->lastTrigger = trig;
 
     self->engine.process(self->in, self->out, frames, self->params(),
                          self->value(kCtlEnabled) > 0.5f);

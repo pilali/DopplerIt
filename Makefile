@@ -8,7 +8,9 @@
 #   make install             install to $(DESTDIR)$(PREFIX)/lib/lv2
 #   make install-user        install to ~/.lv2
 #   make test                build and run the offline DSP tests
-#   make demo                render demo WAV files of the delay engine into build/demo
+#   make demo                render demo WAV files of the engine into build/demo
+#   make presets             regenerate the LV2 presets from src/presets.hpp
+#   make presets-demo        render every preset into build/presets
 #
 
 BUNDLE   = dopplerit.lv2
@@ -55,7 +57,7 @@ MODGUI_FILES = $(wildcard $(BUNDLE)/modgui/*)
 
 all: $(TARGET) bundle
 
-$(TARGET): src/dopplerit.cpp src/delay_engine.hpp
+$(TARGET): src/dopplerit.cpp src/age_engine.hpp
 	@mkdir -p $(BUILDDIR)/$(BUNDLE)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LV2_CFLAGS) src/dopplerit.cpp -o $@ $(LDFLAGS)
 
@@ -76,24 +78,38 @@ install-user:
 uninstall:
 	rm -rf $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 
-test: tests/test_delay tests/test_age
-	./tests/test_delay
+test: tests/test_age check-presets
 	./tests/test_age
 
 tests/test_age: tests/test_age.cpp src/age_engine.hpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -fno-fast-math -Isrc tests/test_age.cpp -o $@ -lm
 
-tests/test_delay: tests/test_delay.cpp src/delay_engine.hpp
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -fno-fast-math -Isrc tests/test_delay.cpp -o $@ -lm
+# LV2 presets, generated from the table shared with the JUCE version
+$(BUILDDIR)/gen_presets: tools/gen_presets.cpp src/presets.hpp src/age_engine.hpp
+	@mkdir -p $(BUILDDIR)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -Isrc tools/gen_presets.cpp -o $@
 
-demo: tools/render_demo.cpp tools/render_age_demo.cpp tools/demo_signal.hpp src/delay_engine.hpp src/age_engine.hpp
+presets: $(BUILDDIR)/gen_presets
+	$(BUILDDIR)/gen_presets $(BUNDLE)
+
+# fails if dopplerit.lv2 does not match src/presets.hpp (run "make presets")
+check-presets: $(BUILDDIR)/gen_presets
+	@mkdir -p $(BUILDDIR)/tmp/check-presets
+	$(BUILDDIR)/gen_presets $(BUILDDIR)/tmp/check-presets > /dev/null
+	cmp $(BUILDDIR)/tmp/check-presets/manifest.ttl $(BUNDLE)/manifest.ttl
+	cmp $(BUILDDIR)/tmp/check-presets/presets.ttl $(BUNDLE)/presets.ttl
+
+demo: tools/render_age_demo.cpp tools/demo_signal.hpp src/age_engine.hpp
 	@mkdir -p $(BUILDDIR)/demo
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -Isrc tools/render_demo.cpp -o $(BUILDDIR)/render_demo -lm
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -Isrc tools/render_age_demo.cpp -o $(BUILDDIR)/render_age_demo -lm
-	$(BUILDDIR)/render_demo $(BUILDDIR)/demo
 	$(BUILDDIR)/render_age_demo $(BUILDDIR)/demo
 
-clean:
-	rm -rf $(BUILDDIR) tests/test_delay tests/test_age
+presets-demo: tools/render_presets.cpp tools/demo_signal.hpp src/presets.hpp src/age_engine.hpp
+	@mkdir -p $(BUILDDIR)/presets
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -Isrc tools/render_presets.cpp -o $(BUILDDIR)/render_presets -lm
+	$(BUILDDIR)/render_presets $(BUILDDIR)/presets
 
-.PHONY: all bundle install install-user uninstall test demo clean
+clean:
+	rm -rf $(BUILDDIR) tests/test_age
+
+.PHONY: all bundle install install-user uninstall test check-presets presets presets-demo demo clean

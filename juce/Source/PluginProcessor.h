@@ -8,22 +8,20 @@
 
 #include <JuceHeader.h>
 
-#include "delay_engine.hpp"
+#include "age_engine.hpp"
+#include "presets.hpp"
 
 namespace ParamID {
     static constexpr const char* mode     = "mode";
-    static constexpr const char* heads    = "heads";
     static constexpr const char* time     = "time";
     static constexpr const char* speed    = "speed";
-    static constexpr const char* distance = "distance";
+    static constexpr const char* depth    = "depth";
+    static constexpr const char* shape    = "shape";
     static constexpr const char* period   = "period";
-    static constexpr const char* stagger  = "stagger";
     static constexpr const char* feedback = "feedback";
     static constexpr const char* tone     = "tone";
     static constexpr const char* mix      = "mix";
     static constexpr const char* output   = "output";
-    static constexpr const char* loop     = "loop";
-    static constexpr const char* trigger  = "trigger";
     static constexpr const char* bypass   = "bypass";
 }
 
@@ -46,12 +44,13 @@ public:
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 12.0; }
+    double getTailLengthSeconds() const override { return 20.0; }
 
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram(int) override {}
-    const juce::String getProgramName(int) override { return {}; }
+    // factory presets (src/presets.hpp, shared with the LV2 version)
+    int getNumPrograms() override { return dopplerit::kNumPresets; }
+    int getCurrentProgram() override { return currentProgram.load(); }
+    void setCurrentProgram(int index) override;
+    const juce::String getProgramName(int index) override;
     void changeProgramName(int, const juce::String&) override {}
 
     void getStateInformation(juce::MemoryBlock& destData) override;
@@ -63,25 +62,22 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
-    dopplerit::DelayParams currentParams() const;
+    dopplerit::AgeParams currentParams() const;
 
-    dopplerit::DelayEngine engine;
+    dopplerit::AgeDelayEngine engine;
     juce::AudioBuffer<float> scratch; // [0] mono input, [1] spare output
-    bool lastTrigger = false;
+    std::atomic<int> currentProgram { 0 };
 
     std::atomic<float>* pMode = nullptr;
-    std::atomic<float>* pHeads = nullptr;
     std::atomic<float>* pTime = nullptr;
     std::atomic<float>* pSpeed = nullptr;
-    std::atomic<float>* pDistance = nullptr;
+    std::atomic<float>* pDepth = nullptr;
+    std::atomic<float>* pShape = nullptr;
     std::atomic<float>* pPeriod = nullptr;
-    std::atomic<float>* pStagger = nullptr;
     std::atomic<float>* pFeedback = nullptr;
     std::atomic<float>* pTone = nullptr;
     std::atomic<float>* pMix = nullptr;
     std::atomic<float>* pOutput = nullptr;
-    std::atomic<float>* pLoop = nullptr;
-    std::atomic<float>* pTrigger = nullptr;
     std::atomic<float>* pBypass = nullptr;
     juce::AudioParameterBool* bypassParam = nullptr;
 

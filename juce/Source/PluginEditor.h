@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: MIT
  *
  * The editor reproduces the MOD modgui (dopplerit.lv2/modgui) as closely as
- * possible: same 320 x 608 layout, colours, knob film strip, footswitch and
- * beacon header. The window can be resized, the content is scaled.
+ * possible: same 320 x 576 layout, colours, knob film strip, footswitch and
+ * beacon header. Above it, a preset bar plays the role of the preset menu of
+ * mod-ui. The window can be resized, the content is scaled.
  */
 
 #pragma once
@@ -69,33 +70,6 @@ private:
     juce::AudioProcessorValueTreeState::SliderAttachment attachment;
 };
 
-// "Loop" slide switch
-class SlideSwitch : public juce::Component
-{
-public:
-    explicit SlideSwitch(juce::RangedAudioParameter&);
-    void paint(juce::Graphics&) override;
-    void mouseDown(const juce::MouseEvent&) override;
-
-private:
-    bool on = false;
-    juce::ParameterAttachment attachment;
-};
-
-// Momentary "Pass" button (trigger parameter)
-class PassButton : public juce::Component
-{
-public:
-    explicit PassButton(juce::RangedAudioParameter&);
-    void paint(juce::Graphics&) override;
-    void mouseDown(const juce::MouseEvent&) override;
-    void mouseUp(const juce::MouseEvent&) override;
-
-private:
-    juce::RangedAudioParameter& param;
-    bool down = false;
-};
-
 // Bypass footswitch + mini beacon LED
 class Footswitch : public juce::Component
 {
@@ -125,7 +99,7 @@ private:
     bool phase = false;
 };
 
-// The 320 x 608 pedal
+// The 320 x 576 pedal
 class Pedal : public juce::Component
 {
 public:
@@ -136,12 +110,39 @@ private:
     juce::Image knobStrip, footswitchSheet;
     std::unique_ptr<juce::Drawable> header;
 
-    SegmentedChoice output, mode, heads;
-    FilmKnob time, speed, distance, period, stagger, feedback, tone, mix;
-    SlideSwitch loop;
-    PassButton pass;
+    SegmentedChoice output, mode;
+    FilmKnob time, speed, depth, shape, period, feedback, tone, mix;
     BeaconLed led;
     Footswitch footswitch;
+};
+
+// Factory preset selector: previous / next arrows and a menu of the presets
+class PresetBar : public juce::Component, private juce::Timer
+{
+public:
+    explicit PresetBar(DopplerItProcessor&);
+    void paint(juce::Graphics&) override;
+    void mouseDown(const juce::MouseEvent&) override;
+    void mouseMove(const juce::MouseEvent&) override;
+    void mouseExit(const juce::MouseEvent&) override;
+
+private:
+    enum Zone { kNone, kPrev, kName, kNext };
+    Zone zoneAt(juce::Point<float>) const;
+    void select(int index);
+    void timerCallback() override; // follows program changes made by the host
+
+    // pop-up menu in the colours and font of the pedal
+    struct MenuLook : juce::LookAndFeel_V4
+    {
+        MenuLook();
+        juce::Font getPopupMenuFont() override;
+    };
+
+    DopplerItProcessor& proc;
+    MenuLook menuLook;
+    int shown = -1;
+    Zone hover = kNone;
 };
 
 } // namespace dpui
@@ -154,9 +155,12 @@ public:
     void resized() override;
 
     static constexpr int kWidth = 320;
-    static constexpr int kHeight = 608;
+    static constexpr int kBarHeight = 30;
+    static constexpr int kPedalHeight = 576;
+    static constexpr int kHeight = kBarHeight + kPedalHeight;
 
 private:
+    dpui::PresetBar presets;
     dpui::Pedal pedal;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DopplerItEditor)

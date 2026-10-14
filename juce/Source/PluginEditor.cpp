@@ -194,91 +194,6 @@ void FilmKnob::paint(Graphics& g)
 }
 
 //==============================================================================
-SlideSwitch::SlideSwitch(RangedAudioParameter& p)
-    : attachment(p, [this](float v) { on = v > 0.5f; repaint(); })
-{
-    attachment.sendInitialUpdate();
-    setMouseCursor(MouseCursor::PointingHandCursor);
-}
-
-void SlideSwitch::paint(Graphics& g)
-{
-    const auto r = getLocalBounds().toFloat();
-    paintWell(g, r, 13.f);
-    if (on)
-    {
-        g.setGradientFill(hgrad(Colour(0xff2a6bb0), Colour(0xffa83a32), r));
-        g.fillRoundedRectangle(r, 13.f);
-    }
-
-    const auto thumb = Rectangle<float>(on ? 29.f : 3.f, 3.f, 20.f, 20.f);
-    DropShadow(Colours::black.withAlpha(0.7f), 2, { 0, 1 }).drawForRectangle(g, thumb.toNearestInt());
-    g.setGradientFill(vgrad(Colour(0xffc3c9d3), Colour(0xff7a818d), thumb));
-    g.fillEllipse(thumb);
-}
-
-void SlideSwitch::mouseDown(const MouseEvent&)
-{
-    attachment.setValueAsCompleteGesture(on ? 0.f : 1.f);
-}
-
-//==============================================================================
-PassButton::PassButton(RangedAudioParameter& p) : param(p)
-{
-    setMouseCursor(MouseCursor::PointingHandCursor);
-}
-
-void PassButton::paint(Graphics& g)
-{
-    const auto r = getLocalBounds().toFloat();
-    const auto c = r.getCentre();
-
-    if (down)
-        DropShadow(kBlue.withAlpha(0.8f), 12, {}).drawForPath(g, [&] { Path p; p.addEllipse(r); return p; }());
-    else
-        DropShadow(Colours::black.withAlpha(0.7f), 4, { 0, 2 }).drawForPath(g, [&] { Path p; p.addEllipse(r); return p; }());
-
-    g.setColour(kOutline);
-    g.fillEllipse(r.expanded(2.f));
-
-    if (down)
-    {
-        ColourGradient grad(Colours::white, c.x, r.getY() + r.getHeight() * 0.4f, Colour(0xff2a6bb0),
-                            c.x, r.getY() + r.getHeight() * 1.15f, true);
-        grad.addColour(0.35, Colour(0xff7fb6ff));
-        g.setGradientFill(grad);
-    }
-    else
-    {
-        g.setGradientFill(ColourGradient(Colour(0xff555d6b), c.x, r.getY() + r.getHeight() * 0.35f,
-                                         Colour(0xff22262e), c.x, r.getY() + r.getHeight() * 1.05f, true));
-    }
-    g.fillEllipse(r);
-
-    if (!down)
-    {
-        g.setColour(Colours::white.withAlpha(0.15f));
-        g.drawEllipse(r.reduced(0.5f), 1.f);
-    }
-}
-
-void PassButton::mouseDown(const MouseEvent&)
-{
-    down = true;
-    param.beginChangeGesture();
-    param.setValueNotifyingHost(1.f);
-    repaint();
-}
-
-void PassButton::mouseUp(const MouseEvent&)
-{
-    down = false;
-    param.setValueNotifyingHost(0.f);
-    param.endChangeGesture();
-    repaint();
-}
-
-//==============================================================================
 Footswitch::Footswitch(RangedAudioParameter& p, const Image& s)
     : sheet(s),
       attachment(p, [this](float v) {
@@ -352,49 +267,37 @@ Pedal::Pedal(DopplerItProcessor& proc)
              { "Pass-by", 2, hgrad(Colour(0xff3f8fe0), Colour(0xffe0544a), { 0, 0, 1, 1 }) },
              { "Recede", 1, vgrad(Colour(0xffe0574c), Colour(0xffa83a32), { 0, 0, 1, 1 }) } },
            11.f, 1.f),
-      heads(*proc.apvts.getParameter(ParamID::heads),
-            { { "1 head", 0, vgrad(Colour(0xff3f8fe0), Colour(0xff2a6bb0), { 0, 0, 1, 1 }) },
-              { "2 heads", 1, hgrad(Colour(0xff3f8fe0), Colour(0xff8a63e0), { 0, 0, 1, 1 }) },
-              { "3 heads", 2, hgrad(Colour(0xff8a63e0), Colour(0xffe0544a), { 0, 0, 1, 1 }) },
-              { "4 heads", 3, vgrad(Colour(0xffe0574c), Colour(0xffa83a32), { 0, 0, 1, 1 }) } },
-            10.f, 1.f),
       time(proc.apvts, ParamID::time, "Time", knobStrip),
       speed(proc.apvts, ParamID::speed, "Speed", knobStrip),
-      distance(proc.apvts, ParamID::distance, "Distance", knobStrip),
+      depth(proc.apvts, ParamID::depth, "Depth", knobStrip),
+      shape(proc.apvts, ParamID::shape, "Shape", knobStrip),
       period(proc.apvts, ParamID::period, "Period", knobStrip),
-      stagger(proc.apvts, ParamID::stagger, "Stagger", knobStrip),
       feedback(proc.apvts, ParamID::feedback, "Feedback", knobStrip),
       tone(proc.apvts, ParamID::tone, "Tone", knobStrip),
       mix(proc.apvts, ParamID::mix, "Dry/Wet", knobStrip),
-      loop(*proc.apvts.getParameter(ParamID::loop)),
-      pass(*proc.apvts.getParameter(ParamID::trigger)),
       footswitch(*proc.apvts.getParameter(ParamID::bypass), footswitchSheet)
 {
     // same coordinates as the modgui stylesheet
     output.setBounds(20, 74, 120, 18);
     mode.setBounds(20, 118, 280, 28);
-    heads.setBounds(20, 150, 280, 22);
 
-    time.setBounds(10, 186, 100, 100);
-    speed.setBounds(110, 186, 100, 100);
-    distance.setBounds(210, 186, 100, 100);
-    period.setBounds(10, 290, 100, 100);
-    stagger.setBounds(110, 290, 100, 100);
-    feedback.setBounds(210, 290, 100, 100);
-    tone.setBounds(60, 394, 100, 100);
-    mix.setBounds(160, 394, 100, 100);
+    time.setBounds(10, 154, 100, 100);
+    speed.setBounds(110, 154, 100, 100);
+    depth.setBounds(210, 154, 100, 100);
+    shape.setBounds(10, 258, 100, 100);
+    period.setBounds(110, 258, 100, 100);
+    feedback.setBounds(210, 258, 100, 100);
+    tone.setBounds(60, 362, 100, 100);
+    mix.setBounds(160, 362, 100, 100);
 
-    loop.setBounds(22 + 12, 516 + 10, 52, 26);
-    pass.setBounds(320 - 22 - 76 + 20, 516 + 4, 36, 36);
-
-    led.setBounds(150 - 20, 500 - 20, 60, 56);
+    led.setBounds(150 - 20, 468 - 20, 60, 56);
     led.setInterceptsMouseClicks(false, false);
-    footswitch.setBounds(125, 526, 70, 70);
+    footswitch.setBounds(125, 494, 70, 70);
     footswitch.onChange = [this](bool bypassed) { led.setActive(!bypassed); };
     led.setActive(!footswitch.isBypassed());
 
-    for (auto* c : std::initializer_list<Component*> { &output, &mode, &heads, &time, &speed, &distance, &period, &stagger,
-                                                       &feedback, &tone, &mix, &loop, &pass, &led, &footswitch })
+    for (auto* c : std::initializer_list<Component*> { &output, &mode, &time, &speed, &depth, &shape, &period,
+                                                       &feedback, &tone, &mix, &led, &footswitch })
         addAndMakeVisible(c);
 }
 
@@ -452,22 +355,130 @@ void Pedal::paint(Graphics& g)
     g.drawText("Doppler", titleBox, Justification::centredLeft, false);
     g.setGradientFill(hgrad(kBlue, kRed, { titleBox.getX() + w1, 0.f, w2, 1.f }));
     g.drawText("It", titleBox.translated(w1, 0.f), Justification::centredLeft, false);
+}
 
-    // loop / pass titles
-    g.setColour(kTitleText);
+//==============================================================================
+PresetBar::MenuLook::MenuLook()
+{
+    setColour(PopupMenu::backgroundColourId, Colour(0xff181c24));
+    setColour(PopupMenu::textColourId, kTitleText);
+    setColour(PopupMenu::headerTextColourId, Colour(0xff7d8796));
+    setColour(PopupMenu::highlightedBackgroundColourId, Colour(0xff2a6bb0));
+    setColour(PopupMenu::highlightedTextColourId, Colours::white);
+}
+
+Font PresetBar::MenuLook::getPopupMenuFont()
+{
+    return cssFont(13.f, false);
+}
+
+PresetBar::PresetBar(DopplerItProcessor& p) : proc(p)
+{
+    setMouseCursor(MouseCursor::PointingHandCursor);
+    startTimerHz(10);
+}
+
+PresetBar::Zone PresetBar::zoneAt(Point<float> p) const
+{
+    if (p.x < 40.f) return kPrev;
+    if (p.x > (float)getWidth() - 40.f) return kNext;
+    return kName;
+}
+
+void PresetBar::paint(Graphics& g)
+{
+    const auto bounds = getLocalBounds().toFloat();
+    g.setGradientFill(vgrad(Colour(0xff181c24), Colour(0xff11141a), bounds));
+    g.fillRect(bounds);
+
+    const auto well = Rectangle<float>(10.f, 4.f, bounds.getWidth() - 20.f, 22.f);
+    paintWell(g, well, 11.f);
+
+    // arrows
+    for (int i = 0; i < 2; ++i)
+    {
+        const bool next = i == 1;
+        const float cx = next ? well.getRight() - 15.f : well.getX() + 15.f, cy = well.getCentreY();
+        Path tri;
+        tri.addTriangle(next ? cx + 4.f : cx - 4.f, cy, next ? cx - 3.f : cx + 3.f, cy - 5.f,
+                        next ? cx - 3.f : cx + 3.f, cy + 5.f);
+        g.setColour(hover == (next ? kNext : kPrev) ? Colour(0xffffffff) : Colour(0xff6f7887));
+        g.fillPath(tri);
+    }
+
+    const int index = proc.getCurrentProgram();
+    const auto text = well.reduced(30.f, 0.f);
+    g.setColour(Colour(0xff6f7887));
+    g.setFont(cssFont(9.f, true, 1.5f));
+    g.drawText(String(index + 1).paddedLeft('0', 2) + "/" + String(dopplerit::kNumPresets), text.withTrimmedLeft(4.f),
+               Justification::centredLeft, false);
+    g.setColour(hover == kName ? Colours::white : kValueText);
     g.setFont(cssFont(11.f, true, 1.f));
-    g.drawText("LOOP", Rectangle<float>(22.f, 516.f + 42.f, 76.f, 11.f * kLineHeight), Justification::centred, false);
-    g.drawText("PASS", Rectangle<float>(320.f - 22.f - 76.f, 516.f + 46.f, 76.f, 11.f * kLineHeight), Justification::centred, false);
+    g.drawText(proc.getProgramName(index).toUpperCase(), text, Justification::centred, true);
+}
+
+void PresetBar::select(int index)
+{
+    const int n = dopplerit::kNumPresets;
+    proc.setCurrentProgram(((index % n) + n) % n);
+    proc.updateHostDisplay(AudioProcessor::ChangeDetails().withProgramChanged(true));
+    repaint();
+}
+
+void PresetBar::mouseDown(const MouseEvent& e)
+{
+    const int current = proc.getCurrentProgram();
+    switch (zoneAt(e.position))
+    {
+    case kPrev: select(current - 1); return;
+    case kNext: select(current + 1); return;
+    case kName: break;
+    case kNone: return;
+    }
+
+    PopupMenu menu;
+    for (int gi = 0; gi < dopplerit::kNumPresetGroups; ++gi)
+    {
+        const int first = dopplerit::kPresetGroups[gi].first;
+        const int end = gi + 1 < dopplerit::kNumPresetGroups ? dopplerit::kPresetGroups[gi + 1].first : dopplerit::kNumPresets;
+        menu.addSectionHeader(dopplerit::kPresetGroups[gi].name);
+        for (int i = first; i < end; ++i)
+            menu.addItem(i + 1, proc.getProgramName(i), true, i == current);
+    }
+    SafePointer<PresetBar> self(this);
+    menu.setLookAndFeel(&menuLook);
+    menu.showMenuAsync(PopupMenu::Options().withTargetComponent(this).withMinimumWidth(getWidth()),
+                       [self](int result) { if (self != nullptr && result > 0) self->select(result - 1); });
+}
+
+void PresetBar::mouseMove(const MouseEvent& e)
+{
+    const Zone z = zoneAt(e.position);
+    if (z != hover) { hover = z; repaint(); }
+}
+
+void PresetBar::mouseExit(const MouseEvent&)
+{
+    hover = kNone;
+    repaint();
+}
+
+void PresetBar::timerCallback()
+{
+    const int index = proc.getCurrentProgram();
+    if (index != shown) { shown = index; repaint(); }
 }
 
 } // namespace dpui
 
 //==============================================================================
 DopplerItEditor::DopplerItEditor(DopplerItProcessor& p)
-    : AudioProcessorEditor(p), pedal(p)
+    : AudioProcessorEditor(p), presets(p), pedal(p)
 {
+    addAndMakeVisible(presets);
     addAndMakeVisible(pedal);
-    pedal.setBounds(0, 0, kWidth, kHeight);
+    presets.setBounds(0, 0, kWidth, kBarHeight);
+    pedal.setBounds(0, kBarHeight, kWidth, kPedalHeight);
 
     setResizable(true, true);
     setResizeLimits(kWidth * 3 / 4, kHeight * 3 / 4, kWidth * 3, kHeight * 3);
@@ -484,5 +495,6 @@ void DopplerItEditor::paint(Graphics& g)
 void DopplerItEditor::resized()
 {
     const float scale = (float)getWidth() / (float)kWidth;
+    presets.setTransform(AffineTransform::scale(scale));
     pedal.setTransform(AffineTransform::scale(scale));
 }

@@ -1,11 +1,13 @@
 // Offline tests for the DopplerIt "age" engine (time-invariant Doppler delay).
 
 #include "age_engine.hpp"
+#include "presets.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 using dopplerit::AgeDelayEngine;
@@ -304,6 +306,50 @@ int main()
         for (size_t i = 24000; i < b.l.size(); ++i)
             d = std::max(d, std::fabs(b.l[i] - (float)(0.5 * std::sin(2.0 * kPi * 440.0 * i / kFs))));
         CHECK(d < 1e-4f, "bypass: output equals input");
+    }
+
+    std::printf("[factory presets]\n");
+    {
+        using namespace dopplerit;
+        int bad = 0, dup = 0, unstable = 0;
+        float loudest = 0.f;
+        const char* loudestName = "";
+        for (int i = 0; i < kNumPresets; ++i) {
+            const Preset& pr = kPresets[i];
+            const bool inRange = pr.mode >= kAgeApproach && pr.mode <= kAgePassBy
+                && pr.time >= kAgeMinTime && pr.time <= kAgeMaxTime
+                && pr.speedKmh >= kAgeMinSpeedKmh && pr.speedKmh <= kAgeMaxSpeedKmh
+                && pr.depth >= kAgeMinDepth && pr.depth <= kAgeMaxDepth
+                && pr.shape >= kAgeMinShape * 100.f && pr.shape <= kAgeMaxShape * 100.f
+                && pr.period >= kAgeMinPeriod && pr.period <= kAgeMaxPeriod
+                && pr.feedback >= 0.f && pr.feedback <= 100.f && pr.tone >= 0.f && pr.tone <= 100.f
+                && pr.mix >= 0.f && pr.mix <= 100.f;
+            if (!inRange) { ++bad; std::printf("         out of range: %s\n", pr.name); }
+            for (int j = 0; j < i; ++j)
+                if (!std::strcmp(pr.id, kPresets[j].id) || !std::strcmp(pr.name, kPresets[j].name)) ++dup;
+
+            AgeParams p;
+            p.mode = pr.mode; p.time = pr.time; p.speedKmh = pr.speedKmh; p.depth = pr.depth;
+            p.shape = pr.shape * 0.01f; p.period = pr.period; p.feedback = pr.feedback * 0.01f;
+            p.tone = pr.tone * 0.01f; p.mix = pr.mix * 0.01f; p.stereo = true;
+            // a 0.5 amplitude chord-like burst every 1.5 s
+            Bursts b { { 0.1, 1.6, 3.1, 4.6 }, 220.0, 0.6 };
+            Render r = render(p, 8.0, b, noHook);
+            float peak = 0.f;
+            bool finite = true;
+            for (size_t k = 0; k < r.l.size(); ++k) {
+                finite = finite && std::isfinite(r.l[k]) && std::isfinite(r.r[k]);
+                peak = std::max(peak, std::max(std::fabs(r.l[k]), std::fabs(r.r[k])));
+            }
+            if (!finite) ++unstable;
+            if (peak > loudest) { loudest = peak; loudestName = pr.name; }
+        }
+        int sections = 1;
+        for (int g = 1; g < kNumPresetGroups; ++g)
+            sections += kPresetGroups[g].first > kPresetGroups[g - 1].first && kPresetGroups[g].first < kNumPresets;
+        CHECK(kNumPresets >= 20 && bad == 0 && dup == 0, "%d presets, all in range, unique ids and names", kNumPresets);
+        CHECK(kPresetGroups[0].first == 0 && sections == kNumPresetGroups, "%d sections, in order", kNumPresetGroups);
+        CHECK(unstable == 0 && loudest < 2.f, "finite output, loudest %.2f (%s) for a 0.5 input", loudest, loudestName);
     }
 
     std::printf("[memory and CPU]\n");
